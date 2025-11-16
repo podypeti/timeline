@@ -4,9 +4,23 @@
 const canvas = document.getElementById("timelineCanvas");
 const ctx = canvas.getContext("2d");
 
+// remove any heading that says "history timeline" (case-insensitive)
+(function removeTitle() {
+  try {
+    const candidates = document.querySelectorAll('h1, h2, .title, #title');
+    candidates.forEach(el => {
+      if (el && el.textContent && el.textContent.toLowerCase().includes('history timeline')) {
+        el.remove();
+      }
+    });
+  } catch (err) {
+    // ignore
+  }
+})();
+
 let zoom = 1;               // current zoom level
 const minZoom = 0.2;
-const maxZoom = 20;
+const maxZoom = 40;
 
 let events = [];            // loaded from CSV
 let rows = [];              // auto-packed rows
@@ -45,38 +59,25 @@ fetch("timeline-data.csv")
 
 // -------------------------
 // CSV PARSER
-// Expected header (examples):
-// Year,Month,Day,Time,End Year,End Month,End Day,End Time,Display Date,Headline,Text,Media,Media Credit,Media Caption,Media Thumbnail,Type,Group,Background
-// This parser will build start/end timestamps (ms) and normalize fields.
 // -------------------------
 function csvSplit(line) {
-    // Simple CSV splitter that respects double quotes
     const parts = [];
     let cur = "";
     let inQuotes = false;
     for (let i = 0; i < line.length; i++) {
         const ch = line[i];
         if (ch === '"') {
-            // handle escaped quotes "" -> "
-            if (inQuotes && line[i + 1] === '"') {
-                cur += '"';
-                i++;
-            } else {
-                inQuotes = !inQuotes;
-            }
-        } else if (ch === "," && !inQuotes) {
-            parts.push(cur);
-            cur = "";
-        } else {
-            cur += ch;
-        }
+            if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+            else inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes) {
+            parts.push(cur); cur = "";
+        } else cur += ch;
     }
     parts.push(cur);
     return parts;
 }
 
 function parseTimeString(timeStr) {
-    // timeStr like "HH:MM" or "HH:MM:SS" or empty
     if (!timeStr) return [0,0,0];
     const parts = timeStr.split(":").map(p => parseInt(p,10));
     const h = isNaN(parts[0]) ? 0 : parts[0];
@@ -86,65 +87,42 @@ function parseTimeString(timeStr) {
 }
 
 function toTimestampFromParts(year, month, day, timeStr) {
-    // month: 1-12 or empty -> default 1 (January)
-    // day: 1-31 or empty -> default 1
-    // returns ms since epoch (UTC)
     if (isNaN(year) || year === null) return NaN;
     const y = parseInt(year, 10);
     const mo = (isNaN(parseInt(month,10)) ? 1 : parseInt(month,10));
     const d = (isNaN(parseInt(day,10)) ? 1 : parseInt(day,10));
     const [h,m,s] = parseTimeString(timeStr);
-    // Use UTC so rendering is consistent across timezones
     return Date.UTC(y, Math.max(0, mo - 1), Math.max(1, d), h, m, s);
 }
 
 function parseCSV(text) {
     if (!text) return [];
-
     const rawLines = text.split("\n");
-    const lines = rawLines.map(l => l.trim()).filter((l, idx) => l.length > 0 || idx === 0); // keep header even if empty-looking
-
+    const lines = rawLines.map(l => l.trim()).filter((l, idx) => l.length > 0 || idx === 0);
     if (lines.length === 0) return [];
-
     const headerParts = csvSplit(lines[0]).map(h => h.trim());
-    // build lowercase header map: headerLower -> originalIndex
     const headerMap = {};
-    headerParts.forEach((h, idx) => {
-        headerMap[h.toLowerCase()] = idx;
-    });
-
+    headerParts.forEach((h, idx) => { headerMap[h.toLowerCase()] = idx; });
     const out = [];
-
     for (let i = 1; i < lines.length; i++) {
-        const raw = lines[i];
-        if (!raw) continue;
-
+        const raw = lines[i]; if (!raw) continue;
         const parts = csvSplit(raw);
-        // build lowercase-keyed map
         const norm = {};
         Object.keys(headerMap).forEach(k => {
             const idx = headerMap[k];
             const rawVal = parts[idx] !== undefined ? parts[idx] : "";
-            // trim surrounding spaces and quotes
             const v = ("" + rawVal).trim().replace(/^"(.*)"$/, "$1");
             norm[k] = v;
         });
-
-        // extract common fields (headline/title variations)
         const title = norm.headline || norm.title || norm.name || "";
         const type = norm.type || "";
         const media = norm.media || "";
         const textField = norm.text || norm['display date'] || "";
-
-        // parse start date from Year/Month/Day/Time
         const year = parseInt(norm.year, 10);
         const month = norm.month;
         const day = norm.day;
         const timeStr = norm.time || norm['time'] || "";
-
         let startTs = toTimestampFromParts(year, month, day, timeStr);
-
-        // parse end date (End Year etc) - if missing, use start
         const endYear = parseInt(norm['end year'], 10);
         let endTs = NaN;
         if (!isNaN(endYear)) {
@@ -153,89 +131,76 @@ function parseCSV(text) {
             const endTimeStr = norm['end time'] || "";
             endTs = toTimestampFromParts(endYear, endMonth, endDay, endTimeStr);
         }
-
         if (isNaN(startTs)) {
-            // fallback: some CSVs might have a single "start" column with full date
             const singleStart = norm.start || norm['start date'] || norm['display date'];
             if (singleStart) {
                 const d = new Date(singleStart);
                 if (!isNaN(d)) startTs = d.getTime();
             }
         }
-
-        if (isNaN(startTs)) {
-            // cannot parse start — skip row
-            continue;
-        }
+        if (isNaN(startTs)) continue;
         if (isNaN(endTs)) endTs = startTs;
-
-        // ensure start <= end
-        if (endTs < startTs) {
-            const tmp = startTs;
-            startTs = endTs;
-            endTs = tmp;
-        }
-
-        out.push({
-            title: title,
-            start: startTs,
-            end: endTs,
-            type: type,
-            media: media,
-            text: textField,
-            raw: norm
-        });
+        if (endTs < startTs) { const tmp = startTs; startTs = endTs; endTs = tmp; }
+        out.push({ title, start: startTs, end: endTs, type, media, text: textField, raw: norm });
     }
-
     return out;
 }
+
 // -------------------------
 // AUTO-PACK EVENTS INTO ROWS
 // -------------------------
 function packRows() {
     rows = [];
-
     events.forEach(ev => {
         let placed = false;
-
         for (let r of rows) {
-            if (!rowOverlap(r, ev)) {
-                r.push(ev);
-                placed = true;
-                break;
-            }
+            if (!rowOverlap(r, ev)) { r.push(ev); placed = true; break; }
         }
-
         if (!placed) rows.push([ev]);
     });
 }
+function rowOverlap(row, ev) { return row.some(e => !(ev.end < e.start || ev.start > e.end)); }
 
-function rowOverlap(row, ev) {
-    return row.some(e => !(ev.end < e.start || ev.start > e.end));
+// -------------------------
+// UTIL: YEAR LABEL FORMATTING & COLORS
+// -------------------------
+function formatYearLabel(y) {
+    // y is astronomical year (can be negative or zero). Display negative/zero as BCE.
+    if (typeof y !== 'number' || isNaN(y)) return '';
+    if (y > 0) return String(y);
+    if (y === 0) return '1 BCE';
+    return `${Math.abs(y)} BCE`;
+}
+
+const GROUP_COLORS = {
+    'event': '#007BFF',
+    'person': '#28A745',
+    'era': '#DC3545',
+    'place': '#6f42c1',
+    'default': '#007BFF'
+};
+function colorForEvent(ev) {
+    const g = (ev.raw && (ev.raw.group || ev.raw['group'])) || ev.type || '';
+    const key = ('' + g).toLowerCase();
+    if (GROUP_COLORS[key]) return GROUP_COLORS[key];
+    // fallback: hash to a color
+    let h = 0; for (let i=0;i<key.length;i++) h = (h<<5)-h + key.charCodeAt(i);
+    const hue = Math.abs(h) % 360;
+    return `hsl(${hue} 70% 45%)`;
 }
 
 // -------------------------
 // PANNING UTIL
 // -------------------------
 function clampPanForSize(W) {
-    // contentWidth is W * zoom (since scale = (W*zoom)/span and span*(W*zoom/span) = W*zoom)
     const contentWidth = W * zoom;
-    const margin = 80; // allow a small margin so items don't hit exactly the edge
-
-    if (contentWidth <= W) {
-        // center the content
-        return (W - contentWidth) / 2;
-    } else {
-        // allow panX between leftLimit and rightLimit
-        const leftLimit = W - contentWidth - margin; // when content is shifted fully left
-        const rightLimit = margin; // when content is shifted fully right
-        return Math.max(leftLimit, Math.min(rightLimit, panX));
-    }
+    const margin = 80;
+    if (contentWidth <= W) return (W - contentWidth) / 2;
+    const leftLimit = W - contentWidth - margin;
+    const rightLimit = margin;
+    return Math.max(leftLimit, Math.min(rightLimit, panX));
 }
-
-function clampPan() {
-    panX = clampPanForSize(canvas.width);
-}
+function clampPan() { panX = clampPanForSize(canvas.width); }
 
 // -------------------------
 // DRAW EVERYTHING
@@ -243,232 +208,125 @@ function clampPan() {
 function draw() {
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
-
-    const W = canvas.width;
-    const H = canvas.height;
-
+    const W = canvas.width; const H = canvas.height;
     ctx.clearRect(0, 0, W, H);
 
-    const timelineY = H * 0.15;
-    const rowHeight = 38;
+    // timeline line and labels at top
+    const topPadding = 8;
+    const labelAreaHeight = 30;
+    const timelineY = topPadding + labelAreaHeight;
+    const rowHeight = 34;
 
     if (!events || events.length === 0) {
-        ctx.fillStyle = "#000";
-        ctx.font = "14px Arial";
-        ctx.fillText("No events", 10, 30);
-        return;
+        ctx.fillStyle = "#000"; ctx.font = "14px Arial"; ctx.fillText("No events", 10, timelineY + 20); return;
     }
 
-    // find min/max timestamps
     let minTs = Math.min(...events.map(e => e.start));
     let maxTs = Math.max(...events.map(e => e.end));
-
-    if (!isFinite(minTs) || !isFinite(maxTs)) {
-        ctx.fillStyle = "#000";
-        ctx.font = "14px Arial";
-        ctx.fillText("Invalid event dates", 10, 30);
-        return;
-    }
-
-    // protect against zero span
-    if (minTs === maxTs) {
-        minTs -= 24 * 3600 * 1000; // one day
-        maxTs += 24 * 3600 * 1000;
-    }
-
+    if (!isFinite(minTs) || !isFinite(maxTs)) { ctx.fillStyle = "#000"; ctx.font = "14px Arial"; ctx.fillText("Invalid event dates", 10, 30); return; }
+    if (minTs === maxTs) { minTs -= 24*3600*1000; maxTs += 24*3600*1000; }
     const span = maxTs - minTs || 1;
     const scale = (W * zoom) / span;
 
-    // initialize pan on first draw to center content if small
-    if (firstDraw) {
-        const contentWidth = W * zoom;
-        if (contentWidth <= W) {
-            panX = (W - contentWidth) / 2;
-        } else {
-            // default: show left-most part
-            panX = 0;
-        }
-        firstDraw = false;
-    }
-
-    // clamp pan to sensible range for this canvas size
+    if (firstDraw) { const contentWidth = W * zoom; panX = contentWidth <= W ? (W - contentWidth)/2 : 0; firstDraw = false; }
     panX = clampPanForSize(W);
+    function xOfTs(ts) { return (ts - minTs) * scale + panX; }
 
-    // convert timestamp → pixel using computed scale and pan offset
-    function xOfTs(ts) {
-        return (ts - minTs) * scale + panX;
-    }
+    // draw timeline line
+    ctx.strokeStyle = "#222"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, timelineY); ctx.lineTo(W, timelineY); ctx.stroke();
 
-    // ---------------------
-    // Draw timeline line
-    // ---------------------
-    ctx.strokeStyle = "#222";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, timelineY);
-    ctx.lineTo(W, timelineY);
-    ctx.stroke();
-
-    // ---------------------
-    // Draw year labels (dynamic) — compute based on pixels/year
-    // ---------------------
+    // draw dynamic date labels at top (non-overlapping)
     const msPerYear = 365.25 * 24 * 3600 * 1000;
     const approxPxPerYear = scale * msPerYear;
-
     let stepYears;
-    if (approxPxPerYear < 2) stepYears = 100;
-    else if (approxPxPerYear < 5) stepYears = 50;
-    else if (approxPxPerYear < 12) stepYears = 20;
-    else if (approxPxPerYear < 30) stepYears = 10;
-    else if (approxPxPerYear < 60) stepYears = 5;
+    if (approxPxPerYear < 2) stepYears = 200;
+    else if (approxPxPerYear < 6) stepYears = 100;
+    else if (approxPxPerYear < 14) stepYears = 50;
+    else if (approxPxPerYear < 30) stepYears = 20;
+    else if (approxPxPerYear < 60) stepYears = 10;
+    else if (approxPxPerYear < 120) stepYears = 5;
+    else if (approxPxPerYear < 240) stepYears = 2;
     else stepYears = 1;
-
-    ctx.fillStyle = "#000";
-    ctx.font = "12px Arial";
-    ctx.strokeStyle = "#222";
-    ctx.lineWidth = 1;
 
     const minYear = new Date(minTs).getUTCFullYear();
     const maxYear = new Date(maxTs).getUTCFullYear();
     const startLabel = Math.floor(minYear / stepYears) * stepYears;
+    ctx.font = "12px Arial"; ctx.textBaseline = 'middle';
+    const minLabelGap = 6; let lastLabelRight = -Infinity;
+
     for (let y = startLabel; y <= maxYear; y += stepYears) {
-        const ts = Date.UTC(y, 0, 1);
+        // skip the astronomical year 0 display issue by formatting specially
+        const ts = Date.UTC(y,0,1);
         const x = xOfTs(ts);
-        if (x < -50 || x > W + 50) continue;
-        ctx.fillText(y, x - 10, timelineY - 5);
-        ctx.beginPath();
-        ctx.moveTo(x, timelineY - 3);
-        ctx.lineTo(x, timelineY + 3);
-        ctx.stroke();
+        if (x < -100 || x > W + 100) continue;
+        const text = formatYearLabel(y);
+        const textW = ctx.measureText(text).width;
+        const pillW = textW + 10; const pillH = 20;
+        const pillX = x - pillW/2; const pillY = topPadding; const pillLeft = Math.max(4, pillX); const pillRight = pillLeft + pillW;
+        if (pillLeft <= lastLabelRight + minLabelGap) continue;
+        ctx.fillStyle = '#ffffffee'; ctx.strokeStyle = '#00000022'; roundRect(ctx, pillLeft, pillY, pillW, pillH, 6, true, false);
+        ctx.fillStyle = '#000'; ctx.fillText(text, pillLeft + 5, pillY + pillH/2);
+        lastLabelRight = pillRight;
+        ctx.beginPath(); ctx.setLineDash([3,3]); ctx.moveTo(x, pillY + pillH); ctx.lineTo(x, timelineY - 4); ctx.stroke(); ctx.setLineDash([]);
     }
 
-    // ---------------------
-    // Draw event rows
-    // ---------------------
+    // rows and events
     rows.forEach((row, i) => {
-        let y = timelineY + 40 + i * rowHeight;
-
+        let y = timelineY + 18 + i * rowHeight;
         row.forEach(ev => {
-            const x1 = xOfTs(ev.start);
-            const x2 = xOfTs(ev.end);
+            const x1 = xOfTs(ev.start); const x2 = xOfTs(ev.end);
+            const left = Math.min(x1,x2); const right = Math.max(x1,x2);
+            const rawWidth = right - left; const minVisualWidth = 10;
+            const color = colorForEvent(ev);
 
-            let color = "#007BFF";
-            const t = (ev.type || "").toLowerCase();
-            if (t === "person") color = "#28A745";
-            else if (t === "era") color = "#DC3545";
+            // draw dotted connector from event to its label area (dotted stick)
+            const labelParts = [];
+            if (ev.title) labelParts.push(ev.title);
+            if (ev.raw && ev.raw['display date']) labelParts.push(ev.raw['display date']);
+            const label = labelParts.join(' — ');
+            ctx.font = '12px Arial';
+            const paddingX = 6; const paddingY = 4; const textWidth = ctx.measureText(label).width;
+            const pillW = Math.min(260, textWidth + paddingX*2); const pillH = 18;
 
-            let left = Math.min(x1, x2);
-            let right = Math.max(x1, x2);
+            let pillX = right + 8; if (pillX + pillW > W - 8) pillX = left - 8 - pillW; if (pillX < 4) pillX = 4;
+            const pillY = y + 10 - pillH/2;
 
-            const width = Math.max(2, right - left);
+            if (rawWidth < minVisualWidth) {
+                const cx = (x1+x2)/2; const r = 6; ctx.beginPath(); ctx.fillStyle = color; ctx.arc(cx, y+10, r, 0, Math.PI*2); ctx.fill();
+                // dotted stick from marker up to pill (if pill is above)
+                const stickX = cx; const stickTop = pillY + pillH; const stickBottom = y+10 - r;
+                ctx.beginPath(); ctx.strokeStyle = color; ctx.setLineDash([4,4]); ctx.moveTo(stickX, stickBottom); ctx.lineTo(stickX, stickTop); ctx.stroke(); ctx.setLineDash([]);
+            } else {
+                const drawLeft = left; const drawWidth = Math.max(6, rawWidth); ctx.fillStyle = color; ctx.fillRect(drawLeft, y, drawWidth, 20);
+                // dotted stick from center of bar up to pill
+                const stickX = drawLeft + drawWidth/2; const stickTop = pillY + pillH; const stickBottom = y;
+                ctx.beginPath(); ctx.strokeStyle = color; ctx.setLineDash([4,4]); ctx.moveTo(stickX, stickBottom); ctx.lineTo(stickX, stickTop); ctx.stroke(); ctx.setLineDash([]);
+            }
 
-            ctx.fillStyle = color;
-            ctx.fillRect(left, y, width, 20);
-
-            ctx.fillStyle = "#000";
-            ctx.font = "12px Arial";
-            const textX = left + 4;
-            const textY = y + 15;
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(left, y, width, 20);
-            ctx.clip();
-            ctx.fillText(ev.title || "", textX, textY);
-            ctx.restore();
+            // draw pill label with colored border to indicate group
+            ctx.fillStyle = '#ffffffdd'; ctx.strokeStyle = color; ctx.lineWidth = 1; roundRect(ctx, pillX, pillY, pillW, pillH, 6, true, true);
+            ctx.fillStyle = '#000'; ctx.fillText(label, pillX + paddingX, pillY + pillH - paddingY - 2);
         });
     });
 }
 
-// -------------------------
-// PANNING EVENT HANDLERS
-// -------------------------
-function onPointerDown(clientX) {
-    isPanning = true;
-    panStartClientX = clientX;
-    panStartPanX = panX;
-    canvas.style.cursor = "grabbing";
-}
+function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+    if (typeof r === 'undefined') r = 5; ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); if (fill) ctx.fill(); if (stroke) ctx.stroke(); }
 
-function onPointerMove(clientX) {
-    if (!isPanning) return;
-    const dx = clientX - panStartClientX;
-    panX = panStartPanX + dx;
-    clampPan();
-    draw();
-}
+// Panning handlers & zoom buttons
+function onPointerDown(clientX) { isPanning = true; panStartClientX = clientX; panStartPanX = panX; canvas.style.cursor = 'grabbing'; }
+function onPointerMove(clientX) { if (!isPanning) return; const dx = clientX - panStartClientX; panX = panStartPanX + dx; clampPan(); draw(); }
+function onPointerUp() { isPanning = false; canvas.style.cursor = 'grab'; }
+canvas.style.cursor = 'grab';
+canvas.addEventListener('mousedown', e => { e.preventDefault(); onPointerDown(e.clientX); });
+window.addEventListener('mousemove', e => { onPointerMove(e.clientX); });
+window.addEventListener('mouseup', e => { onPointerUp(); });
+canvas.addEventListener('touchstart', e => { if (!e.touches || e.touches.length===0) return; onPointerDown(e.touches[0].clientX); });
+canvas.addEventListener('touchmove', e => { if (!e.touches || e.touches.length===0) return; onPointerMove(e.touches[0].clientX); e.preventDefault(); }, { passive: false });
+canvas.addEventListener('touchend', e => { onPointerUp(); });
+canvas.addEventListener('touchcancel', e => { onPointerUp(); });
+document.getElementById('zoomIn').onclick = () => {
+    const oldZoom = zoom; const newZoom = Math.min(maxZoom, zoom * 1.3); if (newZoom === oldZoom) return; const W = canvas.width || canvas.clientWidth; let minTs = events.length ? Math.min(...events.map(e=>e.start)) : 0; let maxTs = events.length ? Math.max(...events.map(e=>e.end)) : 1; if (minTs===maxTs){ minTs -= 24*3600*1000; maxTs += 24*3600*1000;} const span = maxTs-minTs||1; const oldScale = (W*oldZoom)/span; const newScale = (W*newZoom)/span; panX = panX * (newScale/oldScale); zoom = newZoom; clampPan(); draw(); };
 
-function onPointerUp() {
-    isPanning = false;
-    canvas.style.cursor = "grab";
-}
-
-// mouse
-canvas.style.cursor = "grab";
-canvas.addEventListener("mousedown", (e) => {
-    e.preventDefault();
-    onPointerDown(e.clientX);
-});
-window.addEventListener("mousemove", (e) => {
-    onPointerMove(e.clientX);
-});
-window.addEventListener("mouseup", (e) => {
-    onPointerUp();
-});
-canvas.addEventListener("mouseleave", (e) => {
-    // if pointer leaves canvas while dragging, don't immediately end — we listen on window mouseup; still safe to do nothing here
-});
-
-// touch
-canvas.addEventListener("touchstart", (e) => {
-    if (!e.touches || e.touches.length === 0) return;
-    onPointerDown(e.touches[0].clientX);
-});
-canvas.addEventListener("touchmove", (e) => {
-    if (!e.touches || e.touches.length === 0) return;
-    onPointerMove(e.touches[0].clientX);
-    e.preventDefault(); // prevent scrolling while panning
-}, { passive: false });
-canvas.addEventListener("touchend", (e) => {
-    onPointerUp();
-});
-canvas.addEventListener("touchcancel", (e) => {
-    onPointerUp();
-});
-
-// -------------------------
-// ZOOM BUTTONS
-// -------------------------
-document.getElementById("zoomIn").onclick = () => {
-    const oldZoom = zoom;
-    const newZoom = Math.min(maxZoom, zoom * 1.3);
-    if (newZoom === oldZoom) return;
-    // adjust pan so the current view remains approximately at same place
-    const W = canvas.width || canvas.clientWidth;
-    let minTs = events.length ? Math.min(...events.map(e => e.start)) : 0;
-    let maxTs = events.length ? Math.max(...events.map(e => e.end)) : 1;
-    if (minTs === maxTs) { minTs -= 24*3600*1000; maxTs += 24*3600*1000; }
-    const span = maxTs - minTs || 1;
-    const oldScale = (W * oldZoom) / span;
-    const newScale = (W * newZoom) / span;
-    // scale panX proportionally
-    panX = panX * (newScale / oldScale);
-    zoom = newZoom;
-    clampPan();
-    draw();
-};
-document.getElementById("zoomOut").onclick = () => {
-    const oldZoom = zoom;
-    const newZoom = Math.max(minZoom, zoom / 1.3);
-    if (newZoom === oldZoom) return;
-    const W = canvas.width || canvas.clientWidth;
-    let minTs = events.length ? Math.min(...events.map(e => e.start)) : 0;
-    let maxTs = events.length ? Math.max(...events.map(e => e.end)) : 1;
-    if (minTs === maxTs) { minTs -= 24*3600*1000; maxTs += 24*3600*1000; }
-    const span = maxTs - minTs || 1;
-    const oldScale = (W * oldZoom) / span;
-    const newScale = (W * newZoom) / span;
-    panX = panX * (newScale / oldScale);
-    zoom = newZoom;
-    clampPan();
-    draw();
-};
+document.getElementById('zoomOut').onclick = () => {
+    const oldZoom = zoom; const newZoom = Math.max(minZoom, zoom / 1.3); if (newZoom === oldZoom) return; const W = canvas.width || canvas.clientWidth; let minTs = events.length ? Math.min(...events.map(e=>e.start)) : 0; let maxTs = events.length ? Math.max(...events.map(e=>e.end)) : 1; if (minTs===maxTs){ minTs -= 24*3600*1000; maxTs += 24*3600*1000;} const span = maxTs-minTs||1; const oldScale = (W*oldZoom)/span; const newScale = (W*newZoom)/span; panX = panX * (newScale/oldScale); zoom = newZoom; clampPan(); draw(); };
