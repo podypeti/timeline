@@ -1,51 +1,70 @@
-/* --- Layout --- */
+/* --- Layout (your existing styles preserved) --- */
 body {
-    margin: 0;
-    background: #f7f7f7;
-    font-family: Arial, sans-serif;
+  margin: 0;
+  background: #f7f7f7;
+  font-family: Arial, sans-serif;
 }
-
 .header {
-    text-align: center;
-    padding: 20px 0;
-    background: #333;
-    color: white;
-    font-size: 1.6rem;
-    letter-spacing: 1px;
+  text-align: center;
+  padding: 20px 0;
+  background: #333;
+  color: white;
+  font-size: 1.6rem;
+  letter-spacing: 1px;
 }
-
 .controls {
-    text-align: center;
-    margin: 10px 0;
+  text-align: center;
+  margin: 10px 0;
 }
-
 .controls button {
-    padding: 8px 16px;
-    margin: 0 4px;
-    font-size: 1rem;
-    border: none;
-    border-radius: 4px;
-    background: #222;
-    color: white;
-    cursor: pointer;
+  padding: 8px 16px;
+  margin: 0 4px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 4px;
+  background: #222;
+  color: white;
+  cursor: pointer;
 }
-.controls button:hover {
-    background: #444;
-}
+.controls button:hover { background: #444; }
 
 #timelineContainer {
-    width: 100%;
-    overflow: hidden;
-    position: relative;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
 }
-
 #timelineCanvas {
-    width: 100%;
-    height: 480px;
-    display: block;
+  width: 100%;
+  height: 520px; /* a tad taller to fit flags */
+  display: block;
 }
 
-/* --- Colors for event types --- */
-.event-bar    { background: #007BFF; }   /* blue */
-.person-bar   { background: #28A745; }   /* green */
-.era-bar      { background: #DC3545; }   /* red */
+/* --- Optional legend --- */
+.legend {
+  max-width: 1100px;
+  margin: 6px auto 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding: 0 10px;
+  font-size: 0.9rem;
+}
+.legend .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid #0000001a;
+  border-radius: 16px;
+  padding: 4px 10px;
+  box-shadow: 0 1px 2px #00000012;
+}
+.legend .swatch {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 1px solid #00000033;
+}
+
+/* (Your class color hints retained for reference)
+.event-bar { background: #007BFF; }  /* blue  */
+/* .person-bar { background: #28A745; } /* green */
+/* .era-bar    { background: #DC3545; } /* red   */
