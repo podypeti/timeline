@@ -1,34 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Packed Timeline — GitHub Pages Ready</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-body{font-family:Arial,Helvetica,sans-serif;margin:0;background:#fafafa}
-.header{text-align:center;padding:10px 0;font-weight:700}
-.small-note{text-align:center;color:#555;font-size:13px;padding-bottom:6px}
-.legend{text-align:center;padding:6px;font-size:13px}
-#vis{position:relative;height:520px;overflow:auto;border-top:2px solid #ddd;border-bottom:2px solid #ddd;padding-bottom:6px;background:#fff;margin:12px}
-#canvas{position:relative;height:300px;width:100%}
-#scale{position:relative;height:80px;width:100%}
-.event{position:absolute;padding:4px 8px;border-radius:4px;font-size:12px;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,0.05)}
-.event.event{background:#60a5fa;color:white}
-.event.person{background:#4ade80;color:#033}
-.event.era{background:#f87171;color:white}
-.bar{position:absolute;height:18px;border-radius:6px;opacity:0.95}
-.tick{position:absolute;width:1px;height:12px;background:#333}
-.tick-label{position:absolute;font-size:11px;transform:translateX(-50%);margin-top:16px}
-.line-mark{position:absolute;width:2px;background:#222}
-.notice{color:#b22222;text-align:center;padding:8px}
-#timeline-notice{display:none}
-</style>
+  <meta charset="UTF-8">
+  <title>Timeline</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="header">Packed Timeline — GitHub Pages Ready</div>
-<div class="small-note">Auto-packed rows, spans shown as bars, single-year events as vertical marks.</div>
-<div class="legend">Blue=Event • Green=Person • Red=Era</div>
-<div id="vis"><div id="canvas"></div><div id="scale"></div></div>
-<script src="timeline.js"></script>
+  <div id="controls">
+    <button id="zoomIn">+</button>
+    <button id="zoomOut">-</button>
+  </div>
+  <canvas id="timelineCanvas"></canvas>
+  <script src="script.js"></script>
 </body>
 </html>
