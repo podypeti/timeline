@@ -35,7 +35,7 @@ body {
 }
 #timelineCanvas {
   width: 100%;
-  height: 520px; /* a bit taller to fit flags comfortably */
+  height: 520px; /* taller to fit flags */
   display: block;
 }
 
@@ -116,8 +116,3 @@ body {
   border-radius: 8px;
   box-shadow: 0 2px 8px #0000001a;
 }
-
-/* (Old reference classes kept for context)
-.event-bar { background: #007BFF; }  /* blue  */
-/* .person-bar { background: #28A745; } /* green */
-/* .era-bar    { background: #DC3545; } /* red   */
