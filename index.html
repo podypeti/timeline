@@ -1,33 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>History Timeline</title>
-
-    <!-- Styles -->
-    <link rel="stylesheet" href="style.css" />
-
-    <!-- Load Timeline Data -->
-    <script src="timeline.js" defer></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>History Timeline</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
+  <header class="header">History Timeline</header>
 
-    <header class="header">
-        <h1>History Timeline</h1>
-    </header>
+  <div class="controls">
+    <button id="zoomOut" title="Zoom out">−</button>
+    <button id="zoomIn" title="Zoom in">+</button>
+  </div>
 
-    <!-- Zoom Controls -->
-    <div class="controls">
-        <button id="zoomOut">−</button>
-        <button id="zoomIn">+</button>
-    </div>
+  <!-- Optional legend (auto-filled by JS if you keep it) -->
+  <div id="legend" class="legend"></div>
 
-    <!-- Timeline Container -->
-    <div id="timelineContainer">
-        <canvas id="timelineCanvas"></canvas>
-    </div>
+  <div id="timelineContainer">
+    <canvas id="timelineCanvas"></canvas>
+  </div>
 
+  <script src="timeline.js"></script>
 </body>
 </html>
