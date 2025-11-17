@@ -1,7 +1,7 @@
-// === Timeline.js — corrections ===
-// Config: WOL language for links (search works best with English full names)
-const WOL_LINK_LANG = 'en/lp-e'; // keep UI in HU but link search in EN for reliability
-const WOL_SEARCH_BASE = 'https://wol.jw.org/' + WOL_LINK_LANG + '/s/r1/?q=';
+// === Timeline with JW.org Study Bible links, <br> handling, and year-only labels ===
+// Locale settings for jw.org links
+const JW_LOCALE = 'E'; // 'E' for English, 'H' for Hungarian, etc.
+const JW_FINDER_BASE = 'https://www.jw.org/finder?pub=nwtsty&bible='; // + 8-digit code + &wtlocale=E
 
 const canvas = document.getElementById('timelineCanvas');
 const ctx = canvas.getContext('2d');
@@ -20,20 +20,60 @@ fetch('timeline-data.csv')
 
 function message(msg){ canvas.width=canvas.clientWidth; canvas.height=canvas.clientHeight; ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#000'; ctx.font='14px Arial'; ctx.fillText(msg, 10, 30); }
 
-// ---- CSV PARSER ----
+// ---- CSV PARSER (captures precision: year/month/day) ----
 function csvSplit(line){ const out=[]; let cur='', q=false; for(let i=0;i<line.length;i++){ const ch=line[i]; if(ch==='"'){ if(q && line[i+1]==='"'){ cur+='"'; i++; } else q=!q; } else if(ch===',' && !q){ out.push(cur); cur=''; } else cur+=ch; } out.push(cur); return out; }
 function parseTimeString(s){ if(!s) return [0,0,0]; const p=s.split(':').map(x=>parseInt(x,10)); return [isNaN(p[0])?0:p[0], isNaN(p[1])?0:p[1], isNaN(p[2])?0:p[2]]; }
 function toTs(year, month, day, timeStr){ if(isNaN(year)||year===null) return NaN; const y=parseInt(year,10); const mo=isNaN(parseInt(month,10))?1:parseInt(month,10); const d=isNaN(parseInt(day,10))?1:parseInt(day,10); const [h,m,s]=parseTimeString(timeStr); return Date.UTC(y, Math.max(0,mo-1), Math.max(1,d), h,m,s); }
-function parseCSV(text){ if(!text) return []; const raw=text.split(/\r?\n/); const lines=raw.map(l=>l.trim()).filter((l,i)=>(l.length>0)||i===0); if(lines.length===0) return []; const head=csvSplit(lines[0]).map(h=>h.trim()); const map={}; head.forEach((h,i)=>{ map[h.toLowerCase()]=i; }); const out=[]; for(let i=1;i<lines.length;i++){ const parts=csvSplit(lines[i]); if(!parts||parts.length===0) continue; const norm={}; Object.keys(map).forEach(k=>{ const idx=map[k]; const rawVal=(parts[idx]!==undefined?parts[idx]:''); const v=(''+rawVal).trim().replace(/^"(.*)"$/,'$1'); norm[k]=v; }); const title=norm.headline||norm.title||norm.name||''; const type=norm.type||''; const group=norm.group||''; const media=norm.media||''; const textField=norm.text||norm['display date']||'';
-    const year=parseInt(norm.year,10); const monthRaw=norm.month; const dayRaw=norm.day; const timeStr=norm.time||norm['time']||'';
-    const moNum=parseInt(monthRaw,10); const dayNum=parseInt(dayRaw,10);
-    const hadMonth=!isNaN(moNum); const hadDay=!isNaN(dayNum);
-    let start=toTs(year,monthRaw,dayRaw,timeStr); const endYear=parseInt(norm['end year'],10); let end=NaN; if(!isNaN(endYear)){ const endMonth=norm['end month']; const endDay=norm['end day']; const endTime=norm['end time']||''; end=toTs(endYear,endMonth,endDay,endTime); }
-    if(isNaN(start)){ const single=norm.start||norm['start date']||norm['display date']; if(single){ const d=new Date(single); if(!isNaN(d)) start=d.getTime(); } }
-    if(isNaN(start)) continue; if(isNaN(end)) end=start; if(end<start){ const tmp=start; start=end; end=tmp; }
-    const ev={ title, start, end, type, group, media, text:textField, raw:norm, _hadMonth:hadMonth, _hadDay:hadDay };
-    out.push(ev);
-  } return out; }
+function parseCSV(text){
+  if(!text) return [];
+  const raw=text.split(/\r?\n/);
+  const lines=raw.map(l=>l.trim()).filter((l,i)=>(l.length>0)||i===0);
+  if(lines.length===0) return [];
+
+  const head=csvSplit(lines[0]).map(h=>h.trim());
+  const map={}; head.forEach((h,i)=>{ map[h.toLowerCase()]=i; });
+
+  const out=[];
+  for(let i=1;i<lines.length;i++){
+    const parts=csvSplit(lines[i]); if(!parts||parts.length===0) continue;
+    const norm={}; Object.keys(map).forEach(k=>{ const idx=map[k]; const rawVal=(parts[idx]!==undefined?parts[idx]:''); const v=(''+rawVal).trim().replace(/^"(.*)"$/, '$1'); norm[k]=v; });
+
+    const title = norm.headline || norm.title || norm.name || '';
+    const type  = norm.type || '';
+    const group = norm.group || '';
+    const media = norm.media || '';
+    const textField = norm.text || norm['display date'] || '';
+
+    const y  = parseInt(norm.year, 10);
+    const mo = norm.month; const d = norm.day; const timeStr = norm.time || norm['time'] || '';
+
+    const hasMonth = !isNaN(parseInt(mo,10));
+    const hasDay   = !isNaN(parseInt(d,10));
+    let start = toTs(y, mo, d, timeStr);
+    let startPrec = hasDay? 'day' : (hasMonth? 'month' : 'year');
+
+    const endYear = parseInt(norm['end year'], 10);
+    let end=NaN, endPrec=startPrec;
+    if(!isNaN(endYear)){
+      const emo = norm['end month']; const ed = norm['end day']; const et = norm['end time']||'';
+      const eHasMonth = !isNaN(parseInt(emo,10));
+      const eHasDay   = !isNaN(parseInt(ed,10));
+      end = toTs(endYear, emo, ed, et);
+      endPrec = eHasDay? 'day' : (eHasMonth? 'month' : 'year');
+    }
+
+    if(isNaN(start)){
+      const single = norm.start || norm['start date'] || norm['display date'];
+      if(single){ const d2=new Date(single); if(!isNaN(d2)){ start=d2.getTime(); startPrec='day'; } }
+    }
+    if(isNaN(start)) continue;
+    if(isNaN(end)) { end=start; endPrec=startPrec; }
+    if(end<start){ const tmp=start; start=end; end=tmp; const tp=startPrec; startPrec=endPrec; endPrec=tp; }
+
+    out.push({ title, start, end, type, group, media, text: textField, raw: norm, startPrec, endPrec });
+  }
+  return out;
+}
 
 // ---- FILTERS ----
 const activeGroups=new Set(); let availableGroups=[];
@@ -48,15 +88,10 @@ function packRows(){ rows=[]; visibleEvents.forEach(ev=>{ let placed=false; for(
 function clampPanForSize(W){ const content=W*zoom; const margin=80; if(content<=W) return (W-content)/2; const left=W-content-margin; const right=margin; return Math.max(left, Math.min(right, panX)); }
 function clampPan(){ panX=clampPanForSize(canvas.width); }
 
-// ---- FORMATTING ----
-function formatYearHuman(y){ if(y<0) return String(Math.abs(y))+'\u202fBCE'; if(y>0) return String(y); return ''; }
-function labelFromParts(ev){ // show only year when month/day missing
-  const d=new Date(ev.start); const y=d.getUTCFullYear(); const yTxt=(y<0)?String(Math.abs(y))+'\u202fBCE':String(y);
-  if(!(ev._hadMonth && ev._hadDay)) return yTxt; // year only
-  const m=d.getUTCMonth()+1; const day=d.getUTCDate();
-  return yTxt+'-'+String(m).padStart(2,'0')+'-'+String(day).padStart(2,'0');
-}
-function displayWhen(ev){ if(ev.raw && ev.raw['display date']) return ev.raw['display date']; const a=labelFromParts(ev); const b=(ev.start===ev.end)?a:labelFromParts({start:ev.end,_hadMonth:ev._hadMonth,_hadDay:ev._hadDay}); return (a===b)?a:(a+' — '+b); }
+// ---- DATES / LABELS ----
+function formatYearHuman(y){ if(y<0) return `${Math.abs(y)}\u202fBCE`; if(y>0) return `${y}`; return ''; }
+function formatDateHuman(ts, precision){ const d=new Date(ts); const y=d.getUTCFullYear(); if(precision==='year') return (y<0? `${Math.abs(y)}\u202fBCE` : `${y}`); if(precision==='month'){ const m=d.getUTCMonth()+1; const yTxt=(y<0)? `${Math.abs(y)}\u202fBCE`:`${y}`; return `${yTxt}-${String(m).padStart(2,'0')}`; } const m=d.getUTCMonth()+1, day=d.getUTCDate(); const yTxt=(y<0)? `${Math.abs(y)}\u202fBCE`:`${y}`; return `${yTxt}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`; }
+function displayWhen(ev){ if(ev.raw && ev.raw['display date']) return ev.raw['display date']; const a=formatDateHuman(ev.start, ev.startPrec||'day'); const b=formatDateHuman(ev.end, ev.endPrec||'day'); return (a===b)? a : `${a} — ${b}`; }
 
 // ---- COLORS ----
 const COLOR_MAP={ 'events':'#1f77b4','persons':'#2ca02c','covenants':'#8c564b','time periods':'#9467bd','bible writing':'#d62728','world powers':'#ff7f0e','prophets':'#17becf','judges':'#bcbd22','kings of israel':'#e377c2','kings of judah':'#7f7f7f','jesus':'#9c27b0','king of the north':'#795548','king of the south':'#607d8b','paul\'s journeys':'#00acc1','bible copy/translation':'#009688','modern day history of jw':'#ff6f00','(other)':'#007BFF','person':'#2ca02c','era':'#dc3545','':'#007BFF'};
@@ -65,79 +100,173 @@ function colorFor(ev){ const g=groupKeyFor(ev).toLowerCase(); const t=(ev.type||
 // ---- LEGEND ----
 function buildLegend(){ const host=document.getElementById('legend'); if(!host) return; host.innerHTML=''; availableGroups.forEach(({label,keyLower})=>{ const color=COLOR_MAP[keyLower]||COLOR_MAP['']; const chip=document.createElement('div'); chip.className='chip'+(activeGroups.has(keyLower)?'':' inactive'); chip.setAttribute('data-key', keyLower); chip.innerHTML='<span class="swatch" style="background:'+color+'"></span><span>'+label+'</span>'; chip.addEventListener('click',()=>{ if(activeGroups.has(keyLower)) activeGroups.delete(keyLower); else activeGroups.add(keyLower); chip.classList.toggle('inactive'); applyFiltersAndPack(); draw(); }); host.appendChild(chip); }); }
 
-// ---- SCRIPTURE LINKING (reliable search + proper anchors) ----
-// Map common abbreviations to full English book names (improves WOL search hits)
-const BOOK_MAP_EN = {
-  'gen':'Genesis','ex':'Exodus','lev':'Leviticus','num':'Numbers','deut':'Deuteronomy','josh':'Joshua','jg':'Judges','judg':'Judges','ruth':'Ruth',
-  '1 sam':'1 Samuel','2 sam':'2 Samuel','1 ki':'1 Kings','2 ki':'2 Kings','1 ch':'1 Chronicles','2 ch':'2 Chronicles','chron':'Chronicles',
-  'ezra':'Ezra','neh':'Nehemiah','est':'Esther','esth':'Esther','job':'Job','ps':'Psalms','prov':'Proverbs','eccl':'Ecclesiastes','song':'Song of Solomon',
-  'isa':'Isaiah','jer':'Jeremiah','lam':'Lamentations','ezek':'Ezekiel','dan':'Daniel','hos':'Hosea','joel':'Joel','amos':'Amos','obad':'Obadiah','jonah':'Jonah','mic':'Micah','nah':'Nahum','hab':'Habakkuk','zeph':'Zephaniah','hag':'Haggai','zech':'Zechariah','mal':'Malachi',
-  'matt':'Matthew','mt':'Matthew','mark':'Mark','mrk':'Mark','luke':'Luke','lu':'Luke','john':'John','jn':'John','acts':'Acts','rom':'Romans','ro':'Romans',
-  '1 cor':'1 Corinthians','2 cor':'2 Corinthians','gal':'Galatians','eph':'Ephesians','phil':'Philippians','col':'Colossians',
-  '1 thess':'1 Thessalonians','2 thess':'2 Thessalonians','1 tim':'1 Timothy','2 tim':'2 Timothy','titus':'Titus','philem':'Philemon','heb':'Hebrews','jas':'James','james':'James',
-  '1 pet':'1 Peter','2 pet':'2 Peter','1 john':'1 John','2 john':'2 John','3 john':'3 John','jude':'Jude','rev':'Revelation'
+// ---- SCRIPTURE LINKING → JW.org Study Bible (finder) ----
+// Build 8-digit code: BB CCC VVV (2+3+3 digits), e.g., Gen 4:8 → 01 004 008 → 01004008
+const BOOK_CODE = {
+  'genesis':'01','gen':'01','ge':'01','gn':'01',
+  'exodus':'02','ex':'02',
+  'leviticus':'03','lev':'03','le':'03',
+  'numbers':'04','num':'04','nu':'04','nm':'04','nb':'04',
+  'deuteronomy':'05','deut':'05','de':'05','dt':'05',
+  'joshua':'06','josh':'06','jos':'06','jo':'06',
+  'judges':'07','judg':'07','jg':'07',
+  'ruth':'08','ru':'08',
+  '1 samuel':'09','1sam':'09','1 sam':'09','1sa':'09','i sam':'09','1sm':'09',
+  '2 samuel':'10','2sam':'10','2 sam':'10','2sa':'10','ii sam':'10','2sm':'10',
+  '1 kings':'11','1ki':'11','1 kgs':'11','i ki':'11',
+  '2 kings':'12','2ki':'12','2 kgs':'12','ii ki':'12',
+  '1 chronicles':'13','1ch':'13','i ch':'13','1 chron':'13',
+  '2 chronicles':'14','2ch':'14','ii ch':'14','2 chron':'14',
+  'ezra':'15','ezr':'15',
+  'nehemiah':'16','neh':'16',
+  'esther':'17','esth':'17','es':'17',
+  'job':'18','jb':'18',
+  'psalms':'19','ps':'19','psalm':'19',
+  'proverbs':'20','prov':'20','pr':'20',
+  'ecclesiastes':'21','eccl':'21','ec':'21',
+  'song of solomon':'22','song':'22','so':'22','canticles':'22','song of songs':'22',
+  'isaiah':'23','isa':'23','is':'23',
+  'jeremiah':'24','jer':'24','je':'24',
+  'lamentations':'25','lam':'25','la':'25',
+  'ezekiel':'26','eze':'26','ezek':'26','ek':'26',
+  'daniel':'27','dan':'27','da':'27',
+  'hosea':'28','hos':'28','ho':'28',
+  'joel':'29','joe':'29','jl':'29',
+  'amos':'30','am':'30',
+  'obadiah':'31','obad':'31','ob':'31',
+  'jonah':'32','jon':'32','jh':'32',
+  'micah':'33','mic':'33','mi':'33',
+  'nahum':'34','nah':'34','na':'34',
+  'habakkuk':'35','hab':'35','hb':'35',
+  'zephaniah':'36','zeph':'36','zp':'36',
+  'haggai':'37','hag':'37','hg':'37',
+  'zechariah':'38','zech':'38','zc':'38',
+  'malachi':'39','mal':'39','ml':'39',
+  'matthew':'40','matt':'40','mt':'40',
+  'mark':'41','mrk':'41','mk':'41','mr':'41',
+  'luke':'42','lu':'42','lk':'42',
+  'john':'43','jn':'43','joh':'43',
+  'acts':'44','ac':'44',
+  'romans':'45','rom':'45','ro':'45',
+  '1 corinthians':'46','1 cor':'46','i cor':'46','1co':'46',
+  '2 corinthians':'47','2 cor':'47','ii cor':'47','2co':'47',
+  'galatians':'48','gal':'48','ga':'48',
+  'ephesians':'49','eph':'49','ep':'49',
+  'philippians':'50','phil':'50','php':'50',
+  'colossians':'51','col':'51','co':'51',
+  '1 thessalonians':'52','1 thess':'52','1 th':'52','1ts':'52',
+  '2 thessalonians':'53','2 thess':'53','2 th':'53','2ts':'53',
+  '1 timothy':'54','1 tim':'54','1ti':'54',
+  '2 timothy':'55','2 tim':'55','2ti':'55',
+  'titus':'56','tit':'56','ti':'56',
+  'philemon':'57','philem':'57','phm':'57',
+  'hebrews':'58','heb':'58','he':'58',
+  'james':'59','jas':'59','jm':'59',
+  '1 peter':'60','1 pet':'60','1pe':'60',
+  '2 peter':'61','2 pet':'61','2pe':'61',
+  '1 john':'62','1 john':'62','1jn':'62',
+  '2 john':'63','2jn':'63',
+  '3 john':'64','3jn':'64',
+  'jude':'65','jud':'65','jd':'65',
+  'revelation':'66','rev':'66','re':'66'
 };
 
-const TOKEN_SPLIT = /(\s+|[,;()\[\]])/; // keep delimiters
-const REF_ONLY = /^\d+:\d+(?:[-–]\d+)?$/;
-const BOOK_WORD = /^(?:[1-3]\s*)?(?:Gen|Ex|Lev|Num|Deut|Josh|Jg|Judg|Ruth|Sam|Ki|Ch|Chron|Ezra|Neh|Esth?|Job|Ps|Prov|Eccl|Song|Isa|Jer|Lam|Ezek|Dan|Hos|Joel|Amos|Obad|Jonah?|Mic|Nah|Hab|Zeph|Hag|Zech|Mal|Matt|Mt|Mark|Mrk|Luke|Lu|John|Jn|Acts|Rom|Ro|Cor|Gal|Eph|Phil|Col|Thess|Tim|Titus|Philem|Heb|Jas|James|Pet|John|Jude|Rev)\.?$/i;
+const BOOK_TOKEN_RE = /^(Gen|Ex|Lev|Num|Deut|Josh|Jg|Judg|Ruth|1\s?Sam|2\s?Sam|1\s?Ki|2\s?Ki|1\s?Ch|2\s?Ch|Chron|Ezra|Neh|Esth?|Job|Ps|Prov|Eccl|Song|Isa|Jer|Lam|Ezek|Dan|Hos|Joel|Amos|Obad|Jonah?|Mic|Nah|Hab|Zeph|Hag|Zech|Mal|Matt|Mt|Mark|Mrk|Luke|Lu|John|Jn|Acts|Rom|Ro|1\s?Cor|2\s?Cor|Gal|Eph|Phil|Col|1\s?Thess|2\s?Thess|1\s?Tim|2\s?Tim|Titus|Philem|Heb|Jas|James|1\s?Pet|2\s?Pet|1\s?John|2\s?John|3\s?John|Jude|Rev)\.?$/i;
+const REF_RE = /^(\d+):(\d+)(?:[-–](\d+))?$/; // ch:vs or ch:vs-vs
+
+function normBookKey(raw){
+  const s = String(raw||'').trim().replace(/\.$/, '').toLowerCase();
+  return s.replace(/\s+/g,' ');
+}
+function jwCodeFor(book, ch, vs){
+  const key = normBookKey(book)
+    .replace(/^i\s/, '1 ')
+    .replace(/^ii\s/, '2 ')
+    .replace(/^iii\s/, '3 ');
+  const code = BOOK_CODE[key]; if(!code) return null;
+  const cc = String(parseInt(ch,10)).padStart(3,'0');
+  const vv = String(parseInt(vs||0,10)).padStart(3,'0');
+  return code + cc + vv; // 8 digits
+}
 
 function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
-function normBookToEN(s){ // normalize abbreviations to full English for the query
-  let t = s.replace(/\.$/, '').replace(/\s+/g,' ').trim();
-  t = t.replace(/^(\d)\s*(?=[A-Za-z])/, '$1 '); // 1Ki -> 1 Ki
-  const key = t.toLowerCase();
-  if (BOOK_MAP_EN[key]) return BOOK_MAP_EN[key];
-  // try some common patterns
-  return t; // fallback
-}
-
 function linkifyScripture(text){
-  const src = String(text||'');
-  const parts = src.split(TOKEN_SPLIT); // keep spaces and punctuation
-  let out = '';
-  let lastBookEN = null;
-  for (let i=0; i<parts.length; i++){
-    const tk = parts[i];
-    if (!tk) continue;
-    if (/^\s+$/.test(tk) || /^[,;()\[\]]$/.test(tk)) { out += tk; continue; }
-
-    // Try to recognize a Book token (possibly multi-word like "1 Ki")
-    // Peek next token to see if it pairs with a reference
-    const look = parts[i+2] && parts[i+1] && /^\s+$/.test(parts[i+1]) ? parts[i+2] : null;
-    if (BOOK_WORD.test(tk) && look && REF_ONLY.test(look)){
-      const bookEN = normBookToEN(tk);
-      lastBookEN = bookEN;
-      const q = encodeURIComponent(bookEN + ' ' + look);
-      // First citation: link on the whole "Book ref"
-      out += '<a target="_blank" rel="noopener" href="' + WOL_SEARCH_BASE + q + '">' + escapeHtml(tk + ' ' + look) + '</a>';
-      // Skip the space + the ref that we just consumed
-      i += 2;
-      continue;
+  const tokens = String(text||'').split(/(\s+)/); // keep spaces
+  let out=''; let lastBook=null; let i=0;
+  while(i<tokens.length){
+    const tk=tokens[i];
+    if(/\s+/.test(tk)){ out+=tk; i++; continue; }
+    const next = tokens[i+1]||''; const next2 = tokens[i+2]||'';
+    // Case A: Book + space + ch:vs → link whole "Book ch:vs"
+    if(BOOK_TOKEN_RE.test(tk) && /\s+/.test(next) && REF_RE.test(next2)){
+      lastBook = tk; const m = REF_RE.exec(next2); const code=jwCodeFor(tk, m[1], m[2]);
+      if(code){ out += '<a target="_blank" rel="noopener" href="'+JW_FINDER_BASE+code+'&wtlocale='+JW_LOCALE+'">'+escapeHtml(tk+next+next2)+'</a>'; }
+      else { out += escapeHtml(tk+next+next2); }
+      i += 3; continue;
     }
-
-    // Bare ref that can inherit the last book
-    if (REF_ONLY.test(tk) && lastBookEN){
-      const q = encodeURIComponent(lastBookEN + ' ' + tk);
-      out += '<a target="_blank" rel="noopener" href="' + WOL_SEARCH_BASE + q + '">' + escapeHtml(tk) + '</a>';
-      continue;
+    // Case B: bare ch:vs (inherit lastBook) → link numbers only
+    if(REF_RE.test(tk) && lastBook){ const m=REF_RE.exec(tk); const code=jwCodeFor(lastBook, m[1], m[2]);
+      if(code){ out += '<a target="_blank" rel="noopener" href="'+JW_FINDER_BASE+code+'&wtlocale='+JW_LOCALE+'">'+escapeHtml(tk)+'</a>'; }
+      else out += escapeHtml(tk);
+      i++; continue;
     }
-
-    // Otherwise, just emit the text as-is (escaped)
-    out += escapeHtml(tk);
+    // Otherwise
+    if(BOOK_TOKEN_RE.test(tk)) { lastBook=tk; }
+    out += escapeHtml(tk); i++;
   }
-
-  // Convert literal <br> markers in CSV to real line breaks
-  out = out.replace(/&lt;br\/?&gt;/gi, '<br>');
+  // honor <br> markers if present in CSV text
+  out = out.replace(/&lt;br\s*\/?&gt;/gi,'<br>');
   return out;
 }
 
-// ---- DRAW ----
-function draw(){ canvas.width=canvas.clientWidth; canvas.height=canvas.clientHeight; hitRegions=[]; const W=canvas.width, H=canvas.height; ctx.clearRect(0,0,W,H); const topPadding=8, labelH=28, timelineY=topPadding+labelH, rowH=40; if(!visibleEvents||visibleEvents.length===0){ ctx.fillStyle='#000'; ctx.font='14px Arial'; ctx.fillText('No events', 10, timelineY+20); return; } let minTs=Math.min(...visibleEvents.map(e=>e.start)); let maxTs=Math.max(...visibleEvents.map(e=>e.end)); if(!isFinite(minTs)||!isFinite(maxTs)){ message('Invalid event dates'); return; } if(minTs===maxTs){ minTs-=86400000; maxTs+=86400000; } const span=(maxTs-minTs)||1; const scale=(W*zoom)/span; if(firstDraw){ const content=W*zoom; panX=(content<=W)?(W-content)/2:0; firstDraw=false; } panX=clampPanForSize(W); const xOfTs=ts=> (ts-minTs)*scale + panX; ctx.strokeStyle='#222'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,timelineY); ctx.lineTo(W,timelineY); ctx.stroke(); const msPerYear=365.2425*24*3600*1000; const approx=scale*msPerYear; let step; if(approx<2) step=200; else if(approx<6) step=100; else if(approx<14) step=50; else if(approx<30) step=20; else if(approx<60) step=10; else if(approx<100) step=5; else if(approx<200) step=2; else step=1; const minYear=new Date(minTs).getUTCFullYear(); const maxYear=new Date(maxTs).getUTCFullYear(); const startLab=Math.floor(minYear/step)*step; ctx.font='12px Arial'; ctx.textBaseline='middle'; const gap=6; let lastRight=-Infinity; for(let y=startLab; y<=maxYear; y+=step){ if(y===0) continue; const ts=Date.UTC(y,0,1); const x=xOfTs(ts); if(x<-120||x>W+120) continue; const text=formatYearHuman(y); if(!text) continue; const textW=ctx.measureText(text).width; const pillW=textW+10; const pillH=20; const pillX=x-pillW/2; const pillY=topPadding; const left=Math.max(4,pillX); const right=left+pillW; if(left<=lastRight+gap) continue; ctx.fillStyle='#ffffffee'; ctx.strokeStyle='#00000022'; roundRect(ctx,left,pillY,pillW,pillH,6,true,false); ctx.fillStyle='#000'; ctx.fillText(text,left+5,pillY+pillH/2); lastRight=right; ctx.strokeStyle='#00000033'; ctx.beginPath(); ctx.moveTo(x,pillY+pillH); ctx.lineTo(x,timelineY-4); ctx.stroke(); }
-  rows.forEach((row,i)=>{ const yTop=timelineY+18+i*rowH; row.forEach(ev=>{ const x1=xOfTs(ev.start); const x2=xOfTs(ev.end); const left=Math.min(x1,x2); const right=Math.max(x1,x2); const w=right-left; const color=colorFor(ev); const stickX=(w<10)?x1:left; ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle=color+'AA'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(stickX,timelineY); ctx.lineTo(stickX,yTop+10); ctx.stroke(); ctx.restore(); if(w>=10){ ctx.fillStyle=color; const barX=left, barY=yTop+18, barW=Math.max(6,w), barH=6; ctx.fillRect(barX,barY,barW,barH); hitRegions.push({x:barX,y:barY-4,w:barW,h:barH+8,ev,kind:'bar'}); } else { const r=4; ctx.beginPath(); ctx.fillStyle=color; ctx.arc(stickX,yTop+21,r,0,Math.PI*2); ctx.fill(); hitRegions.push({x:stickX-6,y:yTop+15,w:12,h:12,ev,kind:'dot'}); } const title=ev.title||''; const dateTxt=displayWhen(ev); const lines=wrapText(ctx,title,320,'bold 12px Arial').concat(wrapText(ctx,dateTxt,320,'11px Arial')); const padX=8, padY=6, lineGap=2; const heights=lines.map(l=>l.font.startsWith('bold')?13:12); const textW=Math.min(360, Math.max(...lines.map(l=>ctx.measureText(l.text).width))); const pillW=Math.max(120, textW+padX*2); const pillH=padY*2 + heights.reduce((a,b)=>a+b,0) + (lines.length-1)*lineGap; let pillX=stickX+10; if(pillX+pillW>W-8) pillX=stickX-10-pillW; if(pillX<4) pillX=4; const pillY=yTop; ctx.fillStyle='#ffffffdd'; ctx.strokeStyle='#00000022'; ctx.lineWidth=1; roundRect(ctx,pillX,pillY,pillW,pillH,8,true,false); let ty=pillY+padY+(heights[0]-2); lines.forEach((ln,idx)=>{ ctx.font=ln.font; ctx.fillStyle=idx===0?'#000':'#333'; ctx.fillText(ln.text, pillX+padX, ty); ty+=heights[idx]+lineGap; }); hitRegions.push({x:pillX,y:pillY,w:pillW,h:pillH,ev,kind:'flag'}); }); }); }
+function isImageUrl(url){ return /\.(png|jpe?g|gif|webp|avif|svg)(\?|#|$)/i.test(url); }
 
-function roundRect(ctx,x,y,w,h,r,fill,stroke){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+y? h: h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); if(fill) ctx.fill(); if(stroke) ctx.stroke(); }
+// ---- DRAW ----
+function draw(){
+  canvas.width=canvas.clientWidth; canvas.height=canvas.clientHeight; hitRegions=[];
+  const W=canvas.width, H=canvas.height; ctx.clearRect(0,0,W,H);
+  const topPadding=8, labelH=28, timelineY=topPadding+labelH, rowH=40;
+  if(!visibleEvents||visibleEvents.length===0){ ctx.fillStyle='#000'; ctx.font='14px Arial'; ctx.fillText('No events', 10, timelineY+20); return; }
+  let minTs=Math.min(...visibleEvents.map(e=>e.start)); let maxTs=Math.max(...visibleEvents.map(e=>e.end));
+  if(!isFinite(minTs)||!isFinite(maxTs)){ message('Invalid event dates'); return; }
+  if(minTs===maxTs){ minTs-=86400000; maxTs+=86400000; }
+  const span=(maxTs-minTs)||1; const scale=(W*zoom)/span;
+  if(firstDraw){ const content=W*zoom; panX=(content<=W)?(W-content)/2:0; firstDraw=false; }
+  panX=clampPanForSize(W);
+  const xOfTs=ts=> (ts-minTs)*scale + panX;
+
+  ctx.strokeStyle='#222'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,timelineY); ctx.lineTo(W,timelineY); ctx.stroke();
+
+  const msPerYear=365.2425*24*3600*1000; const approx=scale*msPerYear; let step;
+  if(approx<2) step=200; else if(approx<6) step=100; else if(approx<14) step=50; else if(approx<30) step=20; else if(approx<60) step=10; else if(approx<100) step=5; else if(approx<200) step=2; else step=1;
+  const minYear=new Date(minTs).getUTCFullYear(); const maxYear=new Date(maxTs).getUTCFullYear(); const startLab=Math.floor(minYear/step)*step;
+  ctx.font='12px Arial'; ctx.textBaseline='middle'; const gap=6; let lastRight=-Infinity;
+  for(let y=startLab; y<=maxYear; y+=step){ if(y===0) continue; const ts=Date.UTC(y,0,1); const x=xOfTs(ts); if(x<-120||x>W+120) continue; const text=formatYearHuman(y); if(!text) continue; const textW=ctx.measureText(text).width; const pillW=textW+10; const pillH=20; const pillX=x-pillW/2; const pillY=topPadding; const left=Math.max(4,pillX); const right=left+pillW; if(left<=lastRight+gap) continue; ctx.fillStyle='#ffffffee'; ctx.strokeStyle='#00000022'; roundRect(ctx,left,pillY,pillW,pillH,6,true,false); ctx.fillStyle='#000'; ctx.fillText(text,left+5,pillY+pillH/2); lastRight=right; ctx.strokeStyle='#00000033'; ctx.beginPath(); ctx.moveTo(x,pillY+pillH); ctx.lineTo(x,timelineY-4); ctx.stroke(); }
+
+  rows.forEach((row,i)=>{
+    const yTop=timelineY+18+i*rowH;
+    row.forEach(ev=>{
+      const x1=xOfTs(ev.start), x2=xOfTs(ev.end); const left=Math.min(x1,x2), right=Math.max(x1,x2); const w=right-left;
+      const color=colorFor(ev); const stickX=(w<10)?x1:left;
+      ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle=color+'AA'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(stickX,timelineY); ctx.lineTo(stickX,yTop+10); ctx.stroke(); ctx.restore();
+      if(w>=10){ ctx.fillStyle=color; const barX=left, barY=yTop+18, barW=Math.max(6,w), barH=6; ctx.fillRect(barX,barY,barW,barH); hitRegions.push({x:barX,y:barY-4,w:barW,h:barH+8,ev,kind:'bar'}); }
+      else { const r=4; ctx.beginPath(); ctx.fillStyle=color; ctx.arc(stickX,yTop+21,r,0,Math.PI*2); ctx.fill(); hitRegions.push({x:stickX-6,y:yTop+15,w:12,h:12,ev,kind:'dot'}); }
+
+      const title=ev.title||''; const dateTxt=displayWhen(ev);
+      const lines=wrapText(ctx,title,320,'bold 12px Arial').concat(wrapText(ctx,dateTxt,320,'11px Arial'));
+      const padX=8, padY=6, lineGap=2; const heights=lines.map(l=>l.font.startsWith('bold')?13:12);
+      const textW=Math.min(360, Math.max(...lines.map(l=>ctx.measureText(l.text).width)));
+      const pillW=Math.max(120, textW+padX*2); const pillH=padY*2 + heights.reduce((a,b)=>a+b,0) + (lines.length-1)*lineGap;
+      let pillX=stickX+10; if(pillX+pillW>W-8) pillX=stickX-10-pillW; if(pillX<4) pillX=4; const pillY=yTop;
+      ctx.fillStyle='#ffffffdd'; ctx.strokeStyle='#00000022'; ctx.lineWidth=1; roundRect(ctx,pillX,pillY,pillW,pillH,8,true,false);
+      let ty=pillY+padY+(heights[0]-2); lines.forEach((ln,idx)=>{ ctx.font=ln.font; ctx.fillStyle=idx===0?'#000':'#333'; ctx.fillText(ln.text, pillX+padX, ty); ty+=heights[idx]+lineGap; });
+      hitRegions.push({x:pillX,y:pillY,w:pillW,h:pillH,ev,kind:'flag'});
+    });
+  });
+}
+
+function roundRect(ctx,x,y,w,h,r,fill,stroke){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); if(fill) ctx.fill(); if(stroke) ctx.stroke(); }
 function wrapText(ctx,text,maxWidth,font){ const words=String(text||'').split(/\s+/); const lines=[]; let line=''; ctx.font=font||'12px Arial'; words.forEach(w=>{ const test=line? (line+' '+w):w; if(ctx.measureText(test).width>maxWidth && line){ lines.push({text:line,font:ctx.font}); line=w; } else { line=test; } }); if(line) lines.push({text:line,font:ctx.font}); return lines; }
 
 // ---- Interaction ----
@@ -163,10 +292,8 @@ const detailsContent=document.getElementById('detailsContent');
 detailsClose?.addEventListener('click', hideDetails);
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') hideDetails(); });
 
-function showDetails(ev){ if(!detailsPanel||!detailsContent) return; const title=ev.title||'(untitled)'; const when=displayWhen(ev); const group=groupKeyFor(ev); const text=ev.text||''; const media=(ev.media||'').trim(); let mediaHtml=''; if(media){ if(/\.(png|jpe?g|gif|webp|avif|svg)(\?|#|$)/i.test(media)) mediaHtml='<div class="media"><img alt="" src="'+escapeHtml(media)+'"></div>'; else mediaHtml='<div class="media"><a target="_blank" rel="noopener" href="'+escapeHtml(media)+'">Open media</a></div>'; }
-  const bodyHtml = text ? '<p>'+linkifyScripture(text)+'</p>' : '';
-  detailsContent.innerHTML = '<h3 id="detailsTitle">'+escapeHtml(title)+'</h3>' + '<div class="meta">'+escapeHtml(when)+(group?(' • '+escapeHtml(group)):'')+'</div>' + bodyHtml + mediaHtml;
-  detailsPanel.classList.remove('hidden'); }
+function showDetails(ev){ if(!detailsPanel||!detailsContent) return; const title=ev.title||'(untitled)'; const when=displayWhen(ev); const group=groupKeyFor(ev); const text=ev.text||''; const mediaUrl=(ev.media||'').trim(); let mediaHtml=''; if(mediaUrl){ mediaHtml = isImageUrl(mediaUrl) ? ('<div class="media"><img alt="" src="'+escapeHtml(mediaUrl)+'"></div>') : ('<div class="media"><a target="_blank" rel="noopener" href="'+escapeHtml(mediaUrl)+'">Open media</a></div>'); } const textHtml = text ? ('<p>'+linkifyScripture(text)+'</p>') : '';
+  detailsContent.innerHTML = '<h3 id="detailsTitle">'+escapeHtml(title)+'</h3>' + '<div class="meta">'+escapeHtml(when)+(group? (' • '+escapeHtml(group)):'')+'</div>' + textHtml + mediaHtml; detailsPanel.classList.remove('hidden'); }
 function hideDetails(){ if(!detailsPanel) return; detailsPanel.classList.add('hidden'); }
 
 document.getElementById('zoomIn').onclick = ()=>{ const old=zoom; const nz=Math.min(maxZoom, zoom*1.3); if(nz===old) return; const W=canvas.width||canvas.clientWidth; let minTs=visibleEvents.length? Math.min(...visibleEvents.map(e=>e.start)) : 0; let maxTs=visibleEvents.length? Math.max(...visibleEvents.map(e=>e.end)) : 1; if(minTs===maxTs){ minTs-=86400000; maxTs+=86400000; } const span=(maxTs-minTs)||1; const oldS=(W*old)/span; const newS=(W*nz)/span; panX=panX*(newS/oldS); zoom=nz; clampPan(); draw(); };
