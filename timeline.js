@@ -1,7 +1,14 @@
-// === Timeline with JW.org Study Bible links, <br> handling, and year-only labels ===
-// Locale settings for jw.org links
-const JW_LOCALE = 'E'; // 'E' for English, 'H' for Hungarian, etc.
-const JW_FINDER_BASE = 'https://www.jw.org/finder?pub=nwtsty&bible='; // + 8-digit code + &wtlocale=E
+// === Idővonal — JW.org jwlshare linkek, <br> kezelése, év‑pontosságú feliratok ===
+// JW.org nyelvi kód (wtlocale). 'H' = magyar, 'E' = angol
+const JW_LOCALE = 'H';
+function jwFinderUrl(code8){
+  return 'https://www.jw.org/finder'
+    + '?srcid=jwlshare'
+    + '&wtlocale=' + encodeURIComponent(JW_LOCALE)
+    + '&prefer=lang'
+    + '&bible=' + encodeURIComponent(code8)
+    + '&pub=nwtsty';
+}
 
 const canvas = document.getElementById('timelineCanvas');
 const ctx = canvas.getContext('2d');
@@ -11,97 +18,47 @@ let allEvents = [], visibleEvents = [], rows = [];
 let panX = 0, isPanning = false, panStartClientX = 0, panStartPanX = 0, firstDraw = true;
 let hitRegions = [], suppressNextClick = false;
 
-// ---- Load CSV ----
+// ---- CSV betöltés ----
 fetch('timeline-data.csv')
   .then(r => { if (!r.ok) throw new Error('CSV HTTP ' + r.status); return r.text(); })
   .then(t => parseCSV(t))
   .then(data => { allEvents = data; initFiltersFromData(); applyFiltersAndPack(); buildLegend(); draw(); console.log('Loaded events:', visibleEvents.length); })
-  .catch(err => { console.error('CSV load failed:', err); message('Failed to load timeline data.'); });
+  .catch(err => { console.error('CSV load failed:', err); message('Nem sikerült betölteni a CSV fájlt.'); });
 
 function message(msg){ canvas.width=canvas.clientWidth; canvas.height=canvas.clientHeight; ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#000'; ctx.font='14px Arial'; ctx.fillText(msg, 10, 30); }
 
-// ---- CSV PARSER (captures precision: year/month/day) ----
+// ---- CSV PARSER (év/hó/nap pontosság mentése) ----
 function csvSplit(line){ const out=[]; let cur='', q=false; for(let i=0;i<line.length;i++){ const ch=line[i]; if(ch==='"'){ if(q && line[i+1]==='"'){ cur+='"'; i++; } else q=!q; } else if(ch===',' && !q){ out.push(cur); cur=''; } else cur+=ch; } out.push(cur); return out; }
 function parseTimeString(s){ if(!s) return [0,0,0]; const p=s.split(':').map(x=>parseInt(x,10)); return [isNaN(p[0])?0:p[0], isNaN(p[1])?0:p[1], isNaN(p[2])?0:p[2]]; }
 function toTs(year, month, day, timeStr){ if(isNaN(year)||year===null) return NaN; const y=parseInt(year,10); const mo=isNaN(parseInt(month,10))?1:parseInt(month,10); const d=isNaN(parseInt(day,10))?1:parseInt(day,10); const [h,m,s]=parseTimeString(timeStr); return Date.UTC(y, Math.max(0,mo-1), Math.max(1,d), h,m,s); }
-function parseCSV(text){
-  if(!text) return [];
-  const raw=text.split(/\r?\n/);
-  const lines=raw.map(l=>l.trim()).filter((l,i)=>(l.length>0)||i===0);
-  if(lines.length===0) return [];
+function parseCSV(text){ if(!text) return []; const raw=text.split(/\r?\n/); const lines=raw.map(l=>l.trim()).filter((l,i)=>(l.length>0)||i===0); if(lines.length===0) return []; const head=csvSplit(lines[0]).map(h=>h.trim()); const map={}; head.forEach((h,i)=>{ map[h.toLowerCase()]=i; }); const out=[]; for(let i=1;i<lines.length;i++){ const parts=csvSplit(lines[i]); if(!parts||parts.length===0) continue; const norm={}; Object.keys(map).forEach(k=>{ const idx=map[k]; const rawVal=(parts[idx]!==undefined?parts[idx]:''); const v=(''+rawVal).trim().replace(/^"(.*)"$/, '$1'); norm[k]=v; }); const title=norm.headline||norm.title||norm.name||''; const type=norm.type||''; const group=norm.group||''; const media=norm.media||''; const textField=norm.text||norm['display date']||''; const y=parseInt(norm.year,10); const mo=norm.month; const d=norm.day; const timeStr=norm.time||norm['time']||''; const hasMonth=!isNaN(parseInt(mo,10)); const hasDay=!isNaN(parseInt(d,10)); let start=toTs(y,mo,d,timeStr); let startPrec=hasDay?'day':(hasMonth?'month':'year'); const endYear=parseInt(norm['end year'],10); let end=NaN, endPrec=startPrec; if(!isNaN(endYear)){ const emo=norm['end month']; const ed=norm['end day']; const et=norm['end time']||''; const eHasMonth=!isNaN(parseInt(emo,10)); const eHasDay=!isNaN(parseInt(ed,10)); end=toTs(endYear,emo,ed,et); endPrec=eHasDay?'day':(eHasMonth?'month':'year'); } if(isNaN(start)){ const single=norm.start||norm['start date']||norm['display date']; if(single){ const d2=new Date(single); if(!isNaN(d2)){ start=d2.getTime(); startPrec='day'; } } } if(isNaN(start)) continue; if(isNaN(end)){ end=start; endPrec=startPrec; } if(end<start){ const tmp=start; start=end; end=tmp; const tp=startPrec; startPrec=endPrec; endPrec=tp; } out.push({ title, start, end, type, group, media, text:textField, raw:norm, startPrec, endPrec }); } return out; }
 
-  const head=csvSplit(lines[0]).map(h=>h.trim());
-  const map={}; head.forEach((h,i)=>{ map[h.toLowerCase()]=i; });
-
-  const out=[];
-  for(let i=1;i<lines.length;i++){
-    const parts=csvSplit(lines[i]); if(!parts||parts.length===0) continue;
-    const norm={}; Object.keys(map).forEach(k=>{ const idx=map[k]; const rawVal=(parts[idx]!==undefined?parts[idx]:''); const v=(''+rawVal).trim().replace(/^"(.*)"$/, '$1'); norm[k]=v; });
-
-    const title = norm.headline || norm.title || norm.name || '';
-    const type  = norm.type || '';
-    const group = norm.group || '';
-    const media = norm.media || '';
-    const textField = norm.text || norm['display date'] || '';
-
-    const y  = parseInt(norm.year, 10);
-    const mo = norm.month; const d = norm.day; const timeStr = norm.time || norm['time'] || '';
-
-    const hasMonth = !isNaN(parseInt(mo,10));
-    const hasDay   = !isNaN(parseInt(d,10));
-    let start = toTs(y, mo, d, timeStr);
-    let startPrec = hasDay? 'day' : (hasMonth? 'month' : 'year');
-
-    const endYear = parseInt(norm['end year'], 10);
-    let end=NaN, endPrec=startPrec;
-    if(!isNaN(endYear)){
-      const emo = norm['end month']; const ed = norm['end day']; const et = norm['end time']||'';
-      const eHasMonth = !isNaN(parseInt(emo,10));
-      const eHasDay   = !isNaN(parseInt(ed,10));
-      end = toTs(endYear, emo, ed, et);
-      endPrec = eHasDay? 'day' : (eHasMonth? 'month' : 'year');
-    }
-
-    if(isNaN(start)){
-      const single = norm.start || norm['start date'] || norm['display date'];
-      if(single){ const d2=new Date(single); if(!isNaN(d2)){ start=d2.getTime(); startPrec='day'; } }
-    }
-    if(isNaN(start)) continue;
-    if(isNaN(end)) { end=start; endPrec=startPrec; }
-    if(end<start){ const tmp=start; start=end; end=tmp; const tp=startPrec; startPrec=endPrec; endPrec=tp; }
-
-    out.push({ title, start, end, type, group, media, text: textField, raw: norm, startPrec, endPrec });
-  }
-  return out;
-}
-
-// ---- FILTERS ----
+// ---- SZŰRŐK ----
 const activeGroups=new Set(); let availableGroups=[];
-function groupKeyFor(ev){ return (ev.group||ev.type||'(Other)').trim(); }
+function groupKeyFor(ev){ return (ev.group||ev.type||'(Egyéb)').trim(); }
 function initFiltersFromData(){ const seen=new Map(); allEvents.forEach(ev=>{ const label=groupKeyFor(ev); const key=label.toLowerCase(); if(!seen.has(key)) seen.set(key,label); }); availableGroups=[...seen.entries()].map(([k,l])=>({label:l, keyLower:k})); activeGroups.clear(); availableGroups.forEach(g=>activeGroups.add(g.keyLower)); }
 function applyFiltersAndPack(){ visibleEvents=allEvents.filter(ev=>activeGroups.has(groupKeyFor(ev).toLowerCase())); packRows(); }
 
-// ---- ROW PACKING ----
+// ---- SORBA TÖMÖRÍTÉS ----
 function packRows(){ rows=[]; visibleEvents.forEach(ev=>{ let placed=false; for(const r of rows){ if(!r.some(e=>!(ev.end<e.start||ev.start>e.end))){ r.push(ev); placed=true; break; } } if(!placed) rows.push([ev]); }); }
 
-// ---- PAN/ZOOM ----
+// ---- PAN / ZOOM ----
 function clampPanForSize(W){ const content=W*zoom; const margin=80; if(content<=W) return (W-content)/2; const left=W-content-margin; const right=margin; return Math.max(left, Math.min(right, panX)); }
 function clampPan(){ panX=clampPanForSize(canvas.width); }
 
-// ---- DATES / LABELS ----
-function formatYearHuman(y){ if(y<0) return `${Math.abs(y)}\u202fBCE`; if(y>0) return `${y}`; return ''; }
-function formatDateHuman(ts, precision){ const d=new Date(ts); const y=d.getUTCFullYear(); if(precision==='year') return (y<0? `${Math.abs(y)}\u202fBCE` : `${y}`); if(precision==='month'){ const m=d.getUTCMonth()+1; const yTxt=(y<0)? `${Math.abs(y)}\u202fBCE`:`${y}`; return `${yTxt}-${String(m).padStart(2,'0')}`; } const m=d.getUTCMonth()+1, day=d.getUTCDate(); const yTxt=(y<0)? `${Math.abs(y)}\u202fBCE`:`${y}`; return `${yTxt}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`; }
+// ---- DÁTUMOK / FELIRATOK ----
+function formatYearHuman(y){ if(y<0) return `${Math.abs(y)}\u202fIE`; if(y>0) return `${y}`; return ''; }
+function formatDateHuman(ts, precision){ const d=new Date(ts); const y=d.getUTCFullYear(); if(precision==='year') return (y<0? `${Math.abs(y)}\u202fIE` : `${y}`); if(precision==='month'){ const m=d.getUTCMonth()+1; const yTxt=(y<0)? `${Math.abs(y)}\u202fIE`:`${y}`; return `${yTxt}-${String(m).padStart(2,'0')}`; } const m=d.getUTCMonth()+1, day=d.getUTCDate(); const yTxt=(y<0)? `${Math.abs(y)}\u202fIE`:`${y}`; return `${yTxt}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`; }
 function displayWhen(ev){ if(ev.raw && ev.raw['display date']) return ev.raw['display date']; const a=formatDateHuman(ev.start, ev.startPrec||'day'); const b=formatDateHuman(ev.end, ev.endPrec||'day'); return (a===b)? a : `${a} — ${b}`; }
 
-// ---- COLORS ----
+// ---- SZÍNEK ----
 const COLOR_MAP={ 'events':'#1f77b4','persons':'#2ca02c','covenants':'#8c564b','time periods':'#9467bd','bible writing':'#d62728','world powers':'#ff7f0e','prophets':'#17becf','judges':'#bcbd22','kings of israel':'#e377c2','kings of judah':'#7f7f7f','jesus':'#9c27b0','king of the north':'#795548','king of the south':'#607d8b','paul\'s journeys':'#00acc1','bible copy/translation':'#009688','modern day history of jw':'#ff6f00','(other)':'#007BFF','person':'#2ca02c','era':'#dc3545','':'#007BFF'};
 function colorFor(ev){ const g=groupKeyFor(ev).toLowerCase(); const t=(ev.type||'').toLowerCase().trim(); return COLOR_MAP[g]||COLOR_MAP[t]||COLOR_MAP['']; }
 
-// ---- LEGEND ----
+// ---- JELMAGYARÁZAT ----
 function buildLegend(){ const host=document.getElementById('legend'); if(!host) return; host.innerHTML=''; availableGroups.forEach(({label,keyLower})=>{ const color=COLOR_MAP[keyLower]||COLOR_MAP['']; const chip=document.createElement('div'); chip.className='chip'+(activeGroups.has(keyLower)?'':' inactive'); chip.setAttribute('data-key', keyLower); chip.innerHTML='<span class="swatch" style="background:'+color+'"></span><span>'+label+'</span>'; chip.addEventListener('click',()=>{ if(activeGroups.has(keyLower)) activeGroups.delete(keyLower); else activeGroups.add(keyLower); chip.classList.toggle('inactive'); applyFiltersAndPack(); draw(); }); host.appendChild(chip); }); }
 
-// ---- SCRIPTURE LINKING → JW.org Study Bible (finder) ----
-// Build 8-digit code: BB CCC VVV (2+3+3 digits), e.g., Gen 4:8 → 01 004 008 → 01004008
+// ---- IGÉLHIV. → JW.org jwlshare ----
 const BOOK_CODE = {
   'genesis':'01','gen':'01','ge':'01','gn':'01',
   'exodus':'02','ex':'02',
@@ -170,89 +127,76 @@ const BOOK_CODE = {
   'jude':'65','jud':'65','jd':'65',
   'revelation':'66','rev':'66','re':'66'
 };
-
 const BOOK_TOKEN_RE = /^(Gen|Ex|Lev|Num|Deut|Josh|Jg|Judg|Ruth|1\s?Sam|2\s?Sam|1\s?Ki|2\s?Ki|1\s?Ch|2\s?Ch|Chron|Ezra|Neh|Esth?|Job|Ps|Prov|Eccl|Song|Isa|Jer|Lam|Ezek|Dan|Hos|Joel|Amos|Obad|Jonah?|Mic|Nah|Hab|Zeph|Hag|Zech|Mal|Matt|Mt|Mark|Mrk|Luke|Lu|John|Jn|Acts|Rom|Ro|1\s?Cor|2\s?Cor|Gal|Eph|Phil|Col|1\s?Thess|2\s?Thess|1\s?Tim|2\s?Tim|Titus|Philem|Heb|Jas|James|1\s?Pet|2\s?Pet|1\s?John|2\s?John|3\s?John|Jude|Rev)\.?$/i;
-const REF_RE = /^(\d+):(\d+)(?:[-–](\d+))?$/; // ch:vs or ch:vs-vs
+const REF_RE = /^(\d+):(\d+)(?:[-–](\d+))?$/; // fejezet:vers vagy tartomány
 
 function normBookKey(raw){
-  const s = String(raw||'').trim().replace(/\.$/, '').toLowerCase();
-  return s.replace(/\s+/g,' ');
+  const s=String(raw||'').trim().replace(/\.$/,'').toLowerCase().replace(/\s+/g,' ')
+    .replace(/^i\s/,'1 ').replace(/^ii\s/,'2 ').replace(/^iii\s/,'3 ');
+  return s;
 }
-function jwCodeFor(book, ch, vs){
-  const key = normBookKey(book)
-    .replace(/^i\s/, '1 ')
-    .replace(/^ii\s/, '2 ')
-    .replace(/^iii\s/, '3 ');
-  const code = BOOK_CODE[key]; if(!code) return null;
-  const cc = String(parseInt(ch,10)).padStart(3,'0');
-  const vv = String(parseInt(vs||0,10)).padStart(3,'0');
-  return code + cc + vv; // 8 digits
-}
-
+function jwCodeFor(book, ch, vs){ const code=BOOK_CODE[normBookKey(book)]; if(!code) return null; const cc=String(parseInt(ch,10)).padStart(3,'0'); const vv=String(parseInt(vs||0,10)).padStart(3,'0'); return code+cc+vv; }
 function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 function linkifyScripture(text){
-  const tokens = String(text||'').split(/(\s+)/); // keep spaces
-  let out=''; let lastBook=null; let i=0;
-  while(i<tokens.length){
+  const tokens=String(text||'').split(/(\s+)/); // szóközök megőrzése
+  let out=''; let lastBook=null;
+  for(let i=0;i<tokens.length;){
     const tk=tokens[i];
     if(/\s+/.test(tk)){ out+=tk; i++; continue; }
-    const next = tokens[i+1]||''; const next2 = tokens[i+2]||'';
-    // Case A: Book + space + ch:vs → link whole "Book ch:vs"
+    const next=tokens[i+1]||''; const next2=tokens[i+2]||'';
+    // A) Könyv + szóköz + fejezet:vers → teljes kifejezés linkelve
     if(BOOK_TOKEN_RE.test(tk) && /\s+/.test(next) && REF_RE.test(next2)){
-      lastBook = tk; const m = REF_RE.exec(next2); const code=jwCodeFor(tk, m[1], m[2]);
-      if(code){ out += '<a target="_blank" rel="noopener" href="'+JW_FINDER_BASE+code+'&wtlocale='+JW_LOCALE+'">'+escapeHtml(tk+next+next2)+'</a>'; }
-      else { out += escapeHtml(tk+next+next2); }
-      i += 3; continue;
+      lastBook=tk; const m=REF_RE.exec(next2); const code8=jwCodeFor(tk,m[1],m[2]); const label=tk+next+next2;
+      out += code8 ? ( '<a target="_blank" rel="noopener" href="'+jwFinderUrl(code8)+'">'+escapeHtml(label)+'</a>' ) : escapeHtml(label);
+      i+=3; continue;
     }
-    // Case B: bare ch:vs (inherit lastBook) → link numbers only
-    if(REF_RE.test(tk) && lastBook){ const m=REF_RE.exec(tk); const code=jwCodeFor(lastBook, m[1], m[2]);
-      if(code){ out += '<a target="_blank" rel="noopener" href="'+JW_FINDER_BASE+code+'&wtlocale='+JW_LOCALE+'">'+escapeHtml(tk)+'</a>'; }
-      else out += escapeHtml(tk);
-      i++; continue;
-    }
-    // Otherwise
-    if(BOOK_TOKEN_RE.test(tk)) { lastBook=tk; }
-    out += escapeHtml(tk); i++;
+    // B) Csak fejezet:vers → örökli az utolsó könyvet; csak a számok linkelve
+    if(REF_RE.test(tk) && lastBook){ const m=REF_RE.exec(tk); const code8=jwCodeFor(lastBook,m[1],m[2]); out += code8 ? ( '<a target="_blank" rel="noopener" href="'+jwFinderUrl(code8)+'">'+escapeHtml(tk)+'</a>' ) : escapeHtml(tk); i++; continue; }
+    // Egyéb: könyv‑token frissítése
+    if(BOOK_TOKEN_RE.test(tk)) lastBook=tk;
+    out+=escapeHtml(tk); i++;
   }
-  // honor <br> markers if present in CSV text
-  out = out.replace(/&lt;br\s*\/?&gt;/gi,'<br>');
-  return out;
+  // CSV-ben hagyott <br> → valódi sortörés
+  return out.replace(/&lt;br\s*\/?&gt;/gi,'<br>');
 }
 
 function isImageUrl(url){ return /\.(png|jpe?g|gif|webp|avif|svg)(\?|#|$)/i.test(url); }
 
-// ---- DRAW ----
+// ---- RAJZOLÁS ----
 function draw(){
   canvas.width=canvas.clientWidth; canvas.height=canvas.clientHeight; hitRegions=[];
   const W=canvas.width, H=canvas.height; ctx.clearRect(0,0,W,H);
   const topPadding=8, labelH=28, timelineY=topPadding+labelH, rowH=40;
-  if(!visibleEvents||visibleEvents.length===0){ ctx.fillStyle='#000'; ctx.font='14px Arial'; ctx.fillText('No events', 10, timelineY+20); return; }
+  if(!visibleEvents||visibleEvents.length===0){ ctx.fillStyle='#000'; ctx.font='14px Arial'; ctx.fillText('Nincs esemény', 10, timelineY+20); return; }
   let minTs=Math.min(...visibleEvents.map(e=>e.start)); let maxTs=Math.max(...visibleEvents.map(e=>e.end));
-  if(!isFinite(minTs)||!isFinite(maxTs)){ message('Invalid event dates'); return; }
+  if(!isFinite(minTs)||!isFinite(maxTs)){ message('Érvénytelen dátumok'); return; }
   if(minTs===maxTs){ minTs-=86400000; maxTs+=86400000; }
   const span=(maxTs-minTs)||1; const scale=(W*zoom)/span;
   if(firstDraw){ const content=W*zoom; panX=(content<=W)?(W-content)/2:0; firstDraw=false; }
   panX=clampPanForSize(W);
   const xOfTs=ts=> (ts-minTs)*scale + panX;
 
+  // fő vonal
   ctx.strokeStyle='#222'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,timelineY); ctx.lineTo(W,timelineY); ctx.stroke();
 
-  const msPerYear=365.2425*24*3600*1000; const approx=scale*msPerYear; let step;
-  if(approx<2) step=200; else if(approx<6) step=100; else if(approx<14) step=50; else if(approx<30) step=20; else if(approx<60) step=10; else if(approx<100) step=5; else if(approx<200) step=2; else step=1;
+  // év skála (0 nélkül)
+  const msPerYear=365.2425*24*3600*1000; const approx=scale*msPerYear; let step; if(approx<2) step=200; else if(approx<6) step=100; else if(approx<14) step=50; else if(approx<30) step=20; else if(approx<60) step=10; else if(approx<100) step=5; else if(approx<200) step=2; else step=1;
   const minYear=new Date(minTs).getUTCFullYear(); const maxYear=new Date(maxTs).getUTCFullYear(); const startLab=Math.floor(minYear/step)*step;
   ctx.font='12px Arial'; ctx.textBaseline='middle'; const gap=6; let lastRight=-Infinity;
   for(let y=startLab; y<=maxYear; y+=step){ if(y===0) continue; const ts=Date.UTC(y,0,1); const x=xOfTs(ts); if(x<-120||x>W+120) continue; const text=formatYearHuman(y); if(!text) continue; const textW=ctx.measureText(text).width; const pillW=textW+10; const pillH=20; const pillX=x-pillW/2; const pillY=topPadding; const left=Math.max(4,pillX); const right=left+pillW; if(left<=lastRight+gap) continue; ctx.fillStyle='#ffffffee'; ctx.strokeStyle='#00000022'; roundRect(ctx,left,pillY,pillW,pillH,6,true,false); ctx.fillStyle='#000'; ctx.fillText(text,left+5,pillY+pillH/2); lastRight=right; ctx.strokeStyle='#00000033'; ctx.beginPath(); ctx.moveTo(x,pillY+pillH); ctx.lineTo(x,timelineY-4); ctx.stroke(); }
 
+  // események
   rows.forEach((row,i)=>{
     const yTop=timelineY+18+i*rowH;
     row.forEach(ev=>{
-      const x1=xOfTs(ev.start), x2=xOfTs(ev.end); const left=Math.min(x1,x2), right=Math.max(x1,x2); const w=right-left;
-      const color=colorFor(ev); const stickX=(w<10)?x1:left;
+      const x1=xOfTs(ev.start), x2=xOfTs(ev.end); const left=Math.min(x1,x2), right=Math.max(x1,x2); const w=right-left; const color=colorFor(ev); const stickX=(w<10)?x1:left;
+      // pöttyözött pálca
       ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle=color+'AA'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(stickX,timelineY); ctx.lineTo(stickX,yTop+10); ctx.stroke(); ctx.restore();
+      // sáv vagy pont
       if(w>=10){ ctx.fillStyle=color; const barX=left, barY=yTop+18, barW=Math.max(6,w), barH=6; ctx.fillRect(barX,barY,barW,barH); hitRegions.push({x:barX,y:barY-4,w:barW,h:barH+8,ev,kind:'bar'}); }
       else { const r=4; ctx.beginPath(); ctx.fillStyle=color; ctx.arc(stickX,yTop+21,r,0,Math.PI*2); ctx.fill(); hitRegions.push({x:stickX-6,y:yTop+15,w:12,h:12,ev,kind:'dot'}); }
-
+      // zászló
       const title=ev.title||''; const dateTxt=displayWhen(ev);
       const lines=wrapText(ctx,title,320,'bold 12px Arial').concat(wrapText(ctx,dateTxt,320,'11px Arial'));
       const padX=8, padY=6, lineGap=2; const heights=lines.map(l=>l.font.startsWith('bold')?13:12);
@@ -269,7 +213,7 @@ function draw(){
 function roundRect(ctx,x,y,w,h,r,fill,stroke){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); if(fill) ctx.fill(); if(stroke) ctx.stroke(); }
 function wrapText(ctx,text,maxWidth,font){ const words=String(text||'').split(/\s+/); const lines=[]; let line=''; ctx.font=font||'12px Arial'; words.forEach(w=>{ const test=line? (line+' '+w):w; if(ctx.measureText(test).width>maxWidth && line){ lines.push({text:line,font:ctx.font}); line=w; } else { line=test; } }); if(line) lines.push({text:line,font:ctx.font}); return lines; }
 
-// ---- Interaction ----
+// ---- Interakció ----
 function onPointerDown(x){ isPanning=true; suppressNextClick=false; panStartClientX=x; panStartPanX=panX; canvas.style.cursor='grabbing'; }
 function onPointerMove(x){ if(!isPanning) return; const dx=x-panStartClientX; if(Math.abs(dx)>3) suppressNextClick=true; panX=panStartPanX+dx; clampPan(); draw(); }
 function onPointerUp(){ isPanning=false; canvas.style.cursor='grab'; }
@@ -292,7 +236,7 @@ const detailsContent=document.getElementById('detailsContent');
 detailsClose?.addEventListener('click', hideDetails);
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') hideDetails(); });
 
-function showDetails(ev){ if(!detailsPanel||!detailsContent) return; const title=ev.title||'(untitled)'; const when=displayWhen(ev); const group=groupKeyFor(ev); const text=ev.text||''; const mediaUrl=(ev.media||'').trim(); let mediaHtml=''; if(mediaUrl){ mediaHtml = isImageUrl(mediaUrl) ? ('<div class="media"><img alt="" src="'+escapeHtml(mediaUrl)+'"></div>') : ('<div class="media"><a target="_blank" rel="noopener" href="'+escapeHtml(mediaUrl)+'">Open media</a></div>'); } const textHtml = text ? ('<p>'+linkifyScripture(text)+'</p>') : '';
+function showDetails(ev){ if(!detailsPanel||!detailsContent) return; const title=ev.title||'(cím nélkül)'; const when=displayWhen(ev); const group=groupKeyFor(ev); const text=ev.text||''; const mediaUrl=(ev.media||'').trim(); let mediaHtml=''; if(mediaUrl){ mediaHtml = isImageUrl(mediaUrl) ? ('<div class="media"><img alt="" src="'+escapeHtml(mediaUrl)+'"></div>') : ('<div class="media"><a target="_blank" rel="noopener" href="'+escapeHtml(mediaUrl)+'">Megnyitás</a></div>'); } const textHtml = text ? ('<p>'+linkifyScripture(text)+'</p>') : '';
   detailsContent.innerHTML = '<h3 id="detailsTitle">'+escapeHtml(title)+'</h3>' + '<div class="meta">'+escapeHtml(when)+(group? (' • '+escapeHtml(group)):'')+'</div>' + textHtml + mediaHtml; detailsPanel.classList.remove('hidden'); }
 function hideDetails(){ if(!detailsPanel) return; detailsPanel.classList.add('hidden'); }
 

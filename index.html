@@ -1,27 +1,27 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hu">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>History Timeline</title>
+  <title>Történelmi idővonal</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="header">History Timeline</header>
+  <header class="header">Történelmi idővonal</header>
 
   <div class="controls">
-    <button id="zoomOut" title="Zoom out">−</button>
-    <button id="zoomIn"  title="Zoom in">+</button>
+    <button id="zoomOut" title="Kicsinyítés">−</button>
+    <button id="zoomIn"  title="Nagyítás">+</button>
   </div>
 
-  <div id="legend" class="legend" aria-label="Timeline legend and filters"></div>
+  <div id="legend" class="legend" aria-label="Idővonal jelmagyarázat és szűrők"></div>
 
   <div id="timelineContainer">
-    <canvas id="timelineCanvas" aria-label="Interactive history timeline"></canvas>
+    <canvas id="timelineCanvas" aria-label="Interaktív idővonal"></canvas>
   </div>
 
   <aside id="detailsPanel" class="details hidden" role="dialog" aria-modal="false" aria-labelledby="detailsTitle">
-    <button class="close" id="detailsClose" aria-label="Close details">×</button>
+    <button class="close" id="detailsClose" aria-label="Bezárás">×</button>
     <div id="detailsContent"></div>
   </aside>
 
