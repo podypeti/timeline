@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>History Timeline</title>
 
-  <!-- Load styles -->
+  <!-- Correct CSS link -->
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Legend chips (including All / None) get injected here -->
+  <!-- Legend chips (including All / None) are injected here by JS -->
   <div id="legend" class="legend"></div>
 
   <!-- Timeline canvas -->
@@ -31,7 +31,6 @@
 
   <noscript>This page requires JavaScript to display the timeline.</noscript>
 
-  <!-- Load script LAST so the DOM is ready -->
-  <script src="timeline.js"></script>
+  <!-- Correct JS include -->
+  <script src="timeline.js" defer></script>
 </body>
-</html>
