@@ -1,43 +1,33 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>History timeline</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="style.css" rel="stylesheet" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>History Timeline</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
-  <!-- Legend toolbar -->
-  <div class="legendControls">
-    <div class="inner">
-      <div class="legendTitle">Categories</div>
-      <div class="spacer"></div>
-      <button id="btnAll" class="ghost">All</button>
-      <button id="btnNone" class="ghost">None</button>
-    </div>
-  </div>
-
-  <!-- Legend chips -->
+  <!-- Legend chips (including All / None) get injected here -->
   <div id="legend" class="legend"></div>
 
   <!-- Timeline canvas -->
   <div id="timelineContainer">
-    <canvas id="timelineCanvas" width="1200" height="560" aria-label="Timeline"></canvas>
+    <canvas id="timelineCanvas"></canvas>
   </div>
 
-  <!-- Floating zoom buttons -->
-  <div class="floatZoom" aria-label="Zoom controls">
+  <!-- Floating zoom -->
+  <div class="floatZoom">
     <button id="zoomIn" title="Zoom in">+</button>
     <button id="zoomOut" title="Zoom out">−</button>
   </div>
 
-  <!-- Details side panel -->
-  <aside id="detailsPanel" class="details hidden" aria-live="polite">
-    <button id="detailsClose" class="close" title="Close">×</button>
+  <!-- Details panel -->
+  <div id="detailsPanel" class="details hidden" role="dialog" aria-labelledby="detailsTitle">
+    <button id="detailsClose" class="close" aria-label="Close">×</button>
     <div id="detailsContent"></div>
-  </aside>
+  </div>
 
+  <noscript>This page requires JavaScript to display the timeline.</noscript>
   <script src="timeline.js"></script>
 </body>
 </html>
