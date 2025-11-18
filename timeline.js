@@ -177,7 +177,6 @@ function buildLegend(){
     chipIndex.set(keyLower, chip);
   });
 }
-
 // ====== Colors ======
 const COLOR_MAP={
   'events':'#1f77b4','persons':'#2ca02c','covenants':'#8c564b','time periods':'#9467bd',
