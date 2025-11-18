@@ -26,6 +26,41 @@ fetch('timeline-data.csv')
     applyFiltersAndPack();  // <- will call packRows()
     buildLegend();
     attachLegendToolbar();
+    // ====== NEW: Row packing (non-overlapping lanes) ======
+function packRows(){
+  rows = [];
+  if(!visibleEvents || visibleEvents.length === 0) return;
+
+  // Sort by (start asc, then end asc)
+  const sorted = [...visibleEvents].sort((a,b)=>{
+    if(a.start!==b.start) return a.start-b.start;
+    return a.end-b.end;
+  });
+
+  // Greedy first-fit into lanes
+  const R = [];
+  sorted.forEach(ev=>{
+    const start = ev.start, end = Math.max(ev.end, ev.start);
+    let placed = false;
+    for(let r=0;r<R.length;r++){
+      const lane = R[r];
+      const last = lane._lastEnd ?? -Infinity;
+      if(start >= last){            // no overlap → fits here
+        lane.push(ev);
+        lane._lastEnd = end + 1;    // keep increasing boundary
+        placed = true; break;
+      }
+    }
+    if(!placed){
+      const lane = [ev];
+      lane._lastEnd = end + 1;
+      R.push(lane);
+    }
+  });
+
+  // strip helpers
+  rows = R.map(lane => lane.map(x=>x));
+}
     draw();
     console.log('Loaded events:', visibleEvents.length);
   })
