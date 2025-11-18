@@ -178,20 +178,64 @@ function applyFiltersAndPack(){
   packRows(); // <- now implemented
 }
 
-function buildLegend(){
-  const host=document.getElementById('legend'); if(!host) return;
-  host.innerHTML=''; chipIndex.clear();
-  availableGroups.forEach(({label,keyLower})=>{
-    const color = COLOR_MAP[keyLower] || COLOR_MAP[''];
-    const chip=document.createElement('div');
-    chip.className='chip'+(activeGroups.has(keyLower)?'':' inactive');
-    chip.setAttribute('data-key', keyLower);
-    chip.innerHTML='<span class="swatch" style="background:'+color+'"></span><span>'+label+'</span>';
-    chip.addEventListener('click',()=>{
-      if(activeGroups.has(keyLower)) activeGroups.delete(keyLower); else activeGroups.add(keyLower);
-      chip.classList.toggle('inactive');
-      applyFiltersAndPack(); draw();
+function buildLegend() {
+  const host = document.getElementById('legend');
+  if (!host) return;
+
+  host.innerHTML = '';
+  chipIndex.clear();
+
+  // --- Control chips: "All" and "None" ---
+  const controls = document.createDocumentFragment();
+
+  // Helper to set visual active/inactive for all category chips
+  const setAllChipStates = (active) => {
+    chipIndex.forEach((el, key) => {
+      // skip control chips; we mark them with data-role="control"
+      if (el.getAttribute('data-role') === 'control') return;
+      el.classList.toggle('inactive', !activeGroups.has(key));
     });
+  };
+
+  const mkControlChip = (label, action) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.setAttribute('data-role', 'control');
+    chip.innerHTML = `<span class="swatch" style="background:#0000"></span><span>${label}</span>`;
+    chip.addEventListener('click', () => {
+      if (action === 'all') {
+        activeGroups.clear();
+        availableGroups.forEach(g => activeGroups.add(g.keyLower));
+      } else if (action === 'none') {
+        activeGroups.clear();
+      }
+      setAllChipStates();
+      applyFiltersAndPack();
+      draw();
+    });
+    return chip;
+  };
+
+  controls.appendChild(mkControlChip('All', 'all'));
+  controls.appendChild(mkControlChip('None', 'none'));
+  host.appendChild(controls);
+
+  // --- Category chips ---
+  availableGroups.forEach(({ label, keyLower }) => {
+    const color = COLOR_MAP[keyLower] ?? COLOR_MAP[''];
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (activeGroups.has(keyLower) ? '' : ' inactive');
+    chip.setAttribute('data-key', keyLower);
+    chip.innerHTML = `<span class="swatch" style="background:${color}"></span><span>${label}</span>`;
+
+    chip.addEventListener('click', () => {
+      if (activeGroups.has(keyLower)) activeGroups.delete(keyLower);
+      else activeGroups.add(keyLower);
+      chip.classList.toggle('inactive');
+      applyFiltersAndPack();
+      draw();
+    });
+
     host.appendChild(chip);
     chipIndex.set(keyLower, chip);
   });
