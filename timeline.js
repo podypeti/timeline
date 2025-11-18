@@ -198,26 +198,51 @@ const BOOK_CODE = { 'genesis':'01','gen':'01','ge':'01','gn':'01','exodus':'02',
 function normBookKey(raw){ return String(raw||'').trim().replace(/\.$/,'').toLowerCase().replace(/\s+/g,' ').replace(/^i\s/,'1 ').replace(/^ii\s/,'2 ').replace(/^iii\s/,'3 '); }
 function jwCodeFor(book, ch, vs){ const code=BOOK_CODE[normBookKey(book)]; if(!code) return null; const cc=String(parseInt(ch,10)).padStart(3,'0'); const vv=String(parseInt(vs||0,10)).padStart(3,'0'); return code+cc+vv; }
 function escapeHtml(s){ return String(s||'').replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/\"/g,'"').replace(/'/g,'&#39;'); }
-function linkifyScripture(text){
-  const tokens=String(text||'').split(/(\s+)/); let out=''; let lastBook=null;
-  for(let i=0;i<tokens.length;){
-    const tk=tokens[i]; if(/\s+/.test(tk)){ out+=tk; i++; continue; }
-    const next=tokens[i+1]||''; const next2=tokens[i+2]||'';
-    if(BOOK_TOKEN_RE.test(tk) && /\s+/.test(next) && REF_RE.test(next2)){
-      lastBook=tk; const m=REF_RE.exec(next2);
-      const code8=jwCodeFor(tk,m[1],m[2]); const label=tk+next+next2;
-      out += code8 ? ( '<a target="_blank" rel="noopener" href="'+jwFinderUrl(code8)+'">'+escapeHtml(label)+'</a>' ) : escapeHtml(label);
-      i+=3; continue;
+function linkifyScripture(text) {
+  const tokens = String(text || '').split(/(\s+)/);
+  let out = '';
+  let lastBook = null;
+
+  for (let i = 0; i < tokens.length;) {
+    const tk = tokens[i];
+    if (/\s+/.test(tk)) { out += tk; i++; continue; }
+
+    const next  = tokens[i + 1] || '';
+    const next2 = tokens[i + 2] || '';
+
+    // Book + space + chapter:verse (e.g., "Isa 53:5")
+    if (BOOK_TOKEN_RE.test(tk) && /\s+/.test(next) && REF_RE.test(next2)) {
+      lastBook = tk;
+      const m = REF_RE.exec(next2);
+      const code8 = jwCodeFor(tk, m[1], m[2]);
+      const label = tk + next + next2;
+      out += code8
+        ? ('<a target="_blank" rel="noopener" href="' + jwFinderUrl(code8) + '">' + escapeHtml(label) + '</a>')
+        : escapeHtml(label);
+      i += 3;
+      continue;
     }
-    if(REF_RE.test(tk) && lastBook){
-      const m=REF_RE.exec(tk); const code8=jwCodeFor(lastBook,m[1],m[2]);
-      out += code8 ? ( '<a target="_blank" rel="noopener" href="'+jwFinderUrl(code8)+'">'+escapeHtml(tk)+'</a>' ) : escapeHtml(tk);
-      i++; continue;
+
+    // Standalone chapter:verse following a previously seen book (e.g., "53:5")
+    if (REF_RE.test(tk) && lastBook) {
+      const m = REF_RE.exec(tk);
+      const code8 = jwCodeFor(lastBook, m[1], m[2]);
+      out += code8
+        ? ('<a target="_blank" rel="noopener" href="' + jwFinderUrl(code8) + '">' + escapeHtml(tk) + '</a>')
+        : escapeHtml(tk);
+      i++;
+      continue;
     }
-    if(BOOK_TOKEN_RE.test(tk)) lastBook=t k;
-    out+=escapeHtml(tk); i++;
+
+    // Remember last seen book token (FIX: no space — should be "tk")
+    if (BOOK_TOKEN_RE.test(tk)) lastBook = tk;
+
+    out += escapeHtml(tk);
+    i++;
   }
-  return out.replace(/<br\s*\/?>/gi,'<br>');
+
+  // Normalize <br> tags
+  return out.replace(/<br\s*\/?>/gi, '<br>');
 }
 
 // ====== Draw ======
