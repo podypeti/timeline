@@ -2,6 +2,63 @@
 
 // ====== JW.org Bible link (jwlshare → opens JW Library or falls back to JW.org) ======
 const JW_LOCALE = 'E'; // change to 'H' for Hungarian, etc.
+// ====== Labeling configuration ======
+const LABEL_ANCHOR_YEAR   = -5000; // start millennia from 5000 BCE: -5000, -4000, -3000, ...
+const INITIAL_CENTER_YEAR = -4000; // optional: initial camera center near 4000 BCE
+// Tick scale chooser (based on px/year):
+// As you zoom in: day → month → year(1) → decade(10) → century(100) → millennium(1000)
+function chooseTickScale(pxPerYear) {
+  const pxPerMonth = pxPerYear / 12;
+  const pxPerDay   = pxPerYear / 365.2425;
+
+  // Days (highest zoom)
+  if (pxPerDay   >= 60) return { unit: 'day',   step: 1 }; // daily
+  if (pxPerDay   >= 30) return { unit: 'day',   step: 7 }; // weekly
+
+  // Months (high zoom)
+  if (pxPerMonth >= 24) return { unit: 'month', step: 1 }; // each month
+  if (pxPerMonth >= 12) return { unit: 'month', step: 3 }; // quarterly
+  if (pxPerMonth >=  6) return { unit: 'month', step: 6 }; // half-year
+
+  // Years (mid / low zoom)
+  if (pxPerYear  >= 120) return { unit: 'year',  step: 1 };   // every year
+  if (pxPerYear  >=  40) return { unit: 'year',  step: 10 };  // decades
+  if (pxPerYear  >=  12) return { unit: 'year',  step: 100 }; // centuries
+
+  // Very zoomed out → millennia
+  return { unit: 'year', step: 1000 };
+}
+// Align first tick using a fixed anchor (e.g., -5000 → -4000 → -3000 ...), avoiding year 0
+function alignTickFromAnchor(minTs, anchorYear, unit, step) {
+  const dMin  = new Date(minTs);
+  const minY  = dMin.getUTCFullYear();
+
+  if (unit === 'year') {
+    // Find k so that anchorYear + k*step >= minY
+    let k   = Math.ceil((minY - anchorYear) / step);
+    let y0  = anchorYear + k * step;
+    if (y0 === 0) y0 += step; // skip year 0
+    return startOfYear(y0);
+  }
+
+  if (unit === 'month') {
+    // Use January of the anchor year as the anchor month
+    const anchor = Date.UTC(anchorYear, 0, 1);
+    const d      = new Date(anchor);
+    let y        = d.getUTCFullYear(), m = 1; // 1..12
+    // absolute month index from anchor
+    const absMin = dMin.getUTCFullYear() * 12 + dMin.getUTCMonth();
+    const absAnc = y * 12 + (m - 1);
+    const k      = Math.ceil((absMin - absAnc) / step);
+    const absOut = absAnc + k * step;
+    let yOut     = Math.trunc(absOut / 12), mOut = (absOut % 12) + 1;
+    if (yOut === 0) yOut = -1; // simple shift across 0
+    return startOfMonth(yOut, mOut);
+  }
+
+  // day: fall back to existing alignment to midnight boundary
+  return alignTick(minTs, unit, step);
+}
 function jwFinderUrl(code8) {
   return (
     'https://www.jw.org/finder?srcid=jwlshare&wtlocale=' +
@@ -532,11 +589,14 @@ function draw() {
   const span = (maxTs - minTs) || 1;
   const scale = (W * zoom) / span;
 
-  if (firstDraw) {
-    const content = W * zoom;
-    panX = content <= W ? (W - content) / 2 : 0;
-    firstDraw = false;
-  }
+ 
+if (firstDraw) {
+  // Center the initial view around a chosen year (e.g., -4000)
+  const initTs = startOfYear(INITIAL_CENTER_YEAR);
+  panX = (W / 2) - ((initTs - minTs) * scale);
+  firstDraw = false;
+}
+
   panX = clampPanForSize(W);
 
   const xOfTs = (ts) => (ts - minTs) * scale + panX;
@@ -560,7 +620,7 @@ function draw() {
   ctx.textBaseline = 'middle';
   const gap = 12;
   let lastRight = -Infinity;
-  let t = alignTick(minTs, unit, step);
+let t = alignTickFromAnchor(minTs, LABEL_ANCHOR_YEAR, unit, step);
 
   while (t <= maxTs) {
     // Skip label exactly at year 0
