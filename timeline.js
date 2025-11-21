@@ -103,6 +103,11 @@ function draw(minTs, maxTs) {
         ctx.strokeStyle = '#00000022';
         ctx.beginPath();
         ctx.roundRect(x - pillW / 2, pillY, pillW, pillH, 6);
+        if (ctx.roundRect) {
+    ctx.roundRect(x - pillW / 2, pillY, pillW, pillH, 6);
+} else {
+    ctx.rect(x - pillW / 2, pillY, pillW, pillH, 6);
+}
         ctx.fill();
         ctx.fillStyle = '#000';
         ctx.textBaseline = 'middle';
