@@ -28,6 +28,45 @@ let panStartPanX = 0;
 let firstDraw = true;
 let hitRegions = [];
 let suppressNextClick = false;
+// Reset zoom & center
+const rz = document.getElementById('resetZoom');
+rz && (rz.onclick = () => {
+  // Reset zoom
+  zoom = 1;
+
+  // Compute min/max across visible events (fallback if empty)
+  let minTs = visibleEvents.length ? Math.min(...visibleEvents.map((e) => e.start)) : 0;
+  let maxTs = visibleEvents.length ? Math.max(...visibleEvents.map((e) => e.end)) : 1;
+  if (minTs === maxTs) { minTs -= 86400000; maxTs += 86400000; }
+
+  // Center content horizontally at zoom=1
+  const W = canvas.width || canvas.clientWidth;
+  const span = (maxTs - minTs) || 1;
+  const contentWidth = (W * zoom) * 1;   // zoom is now 1, so contentWidth = W
+  panX = contentWidth <= W ? (W - contentWidth) / 2 : 0;
+
+  // Clamp and redraw
+  clampPan();
+  draw();
+});
+rz && (rz.onclick = () => {
+  zoom = 1;
+
+  let minTs = visibleEvents.length ? Math.min(...visibleEvents.map((e) => e.start)) : 0;
+  let maxTs = visibleEvents.length ? Math.max(...visibleEvents.map((e) => e.end)) : 1;
+  if (minTs === maxTs) { minTs -= 86400000; maxTs += 86400000; }
+
+  const W = canvas.width || canvas.clientWidth;
+  const span = (maxTs - minTs) || 1;
+  const scale = (W * zoom) / span; // zoom=1
+  const midTs = (minTs + maxTs) / 2;
+
+  // We want xOfTs(midTs) = W/2  →  (midTs - minTs)*scale + panX = W/2
+  panX = (W / 2) - ((midTs - minTs) * scale);
+
+  clampPan();
+  draw();
+});
 
 // ====== Load CSV ======
 fetch('timeline-data.csv')
