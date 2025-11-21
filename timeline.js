@@ -87,6 +87,11 @@ function draw(minTs, maxTs) {
   W = canvas.width = window.innerWidth;
   H = canvas.height = window.innerHeight;
   ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = '#000';
+ctx.beginPath();
+ctx.moveTo(0, H / 2);
+ctx.lineTo(W, H / 2);
+ctx.stroke();
 
   const pxPerYear = scale;
   const { unit, step } = chooseTickScale(pxPerYear);
@@ -103,17 +108,7 @@ function draw(minTs, maxTs) {
       const pillW = ctx.measureText(text).width + 10;
       const pillH = 20;
       const pillY = 30;
-      if (x - pillW / 2 > lastRight + gap) {
-        ctx.fillStyle = '#ffffffee';
-        ctx.strokeStyle = '#00000022';
-        ctx.beginPath();
-        ctx.roundRect(x - pillW / 2, pillY, pillW, pillH, 6);
-        ctx.fill();
-        ctx.fillStyle = '#000';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(text, x - pillW / 2 + 5, pillY + pillH / 2);
-        lastRight = x + pillW / 2;
-      }
+
     }
     if (unit === 'year') {
       t = startOfYear(new Date(t).getUTCFullYear() + step);
@@ -179,3 +174,4 @@ canvas.addEventListener('mouseup', () => {
 canvas.addEventListener('mouseleave', () => {
   isDragging = false;
 });
+scale = window.innerWidth / (maxTs - minTs); // auto-fit
