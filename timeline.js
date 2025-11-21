@@ -8,8 +8,8 @@ const INITIAL_CENTER_YEAR = -4000; // center view near 4000 BCE
 const canvas = document.getElementById('timelineCanvas'); // DOM is ready because script is at bottom
 const ctx = canvas.getContext('2d');
 let W, H;
-let scale = 1;
-let panX = 0;
+let scale = window.innerWidth / (maxTs - minTs); // auto-fit entire range
+let panX = W / 2 - ((startOfYear(INITIAL_CENTER_YEAR) - minTs) * scale);
 let firstDraw = true;
 
 // ===== Utility functions =====
