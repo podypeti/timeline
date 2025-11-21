@@ -2,44 +2,33 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>History Timeline</title>
-
-  <!-- Disable caching of HTML to always load the newest version -->
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
-
-  <!-- Prevent caching of favicon (if any) -->
-  <link rel="icon" href="data:,">
-
-  <!-- Load CSS -->
-  <link rel="stylesheet" href="style.css?v=1" />
+  style.css
 </head>
 <body>
-  <!-- Legend chips (including All / None) are injected here by JS -->
-  <div id="legend" class="legend"></div>
+  <!-- Legend and controls -->
+  <div class="legendControls">
+    <div class="inner">
+      <span class="legendTitle">Legend</span>
+      <div id="legend" class="legend"></div>
+      <div class="spacer"></div>
+      <button id="zoomOut" class="ghost">−</button>
+      <button id="zoomIn" class="ghost">+</button>
+    </div>
+  </div>
 
   <!-- Timeline canvas -->
   <div id="timelineContainer">
     <canvas id="timelineCanvas"></canvas>
   </div>
 
-  <!-- Floating zoom -->
-  <div class="floatZoom">
-    <button id="zoomIn" title="Zoom in">+</button>
-    <button id="zoomOut" title="Zoom out">−</button>
-  </div>
-
   <!-- Details panel -->
-  <div id="detailsPanel" class="details hidden" role="dialog" aria-labelledby="detailsTitle">
-    <button id="detailsClose" class="close" aria-label="Close">×</button>
+  <div id="detailsPanel" class="details hidden">
+    <button id="detailsClose" class="close">×</button>
     <div id="detailsContent"></div>
   </div>
 
-  <noscript>This page requires JavaScript to display the timeline.</noscript>
-
-  <!-- Load JS (cache-busted with version number) -->
-  <script src="timeline.js?v=1" defer></script>
+  timeline.js</script>
 </body>
 </html>
