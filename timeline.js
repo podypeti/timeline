@@ -9,10 +9,6 @@ const INITIAL_CENTER_YEAR = -4000; // center view near 4000 BCE
 // ===== Canvas and state =====
 document.addEventListener('DOMContentLoaded', () => {
   const canvas = document.getElementById('timelineCanvas');
-  if (!canvas) {
-    console.error('Canvas element not found!');
-    return;
-  }
   const ctx = canvas.getContext('2d');
 });
 let W, H;
