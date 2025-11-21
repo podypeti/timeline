@@ -11,21 +11,17 @@ function chooseTickScale(pxPerYear) {
   const pxPerMonth = pxPerYear / 12;
   const pxPerDay   = pxPerYear / 365.2425;
 
-  // Days (highest zoom)
-  if (pxPerDay   >= 60) return { unit: 'day',   step: 1 }; // daily
-  if (pxPerDay   >= 30) return { unit: 'day',   step: 7 }; // weekly
+  if (pxPerDay   >= 60) return { unit: 'day',   step: 1 };
+  if (pxPerDay   >= 30) return { unit: 'day',   step: 7 };
 
-  // Months (high zoom)
-  if (pxPerMonth >= 24) return { unit: 'month', step: 1 }; // each month
-  if (pxPerMonth >= 12) return { unit: 'month', step: 3 }; // quarterly
-  if (pxPerMonth >=  6) return { unit: 'month', step: 6 }; // half-year
+  if (pxPerMonth >= 24) return { unit: 'month', step: 1 };
+  if (pxPerMonth >= 12) return { unit: 'month', step: 3 };
+  if (pxPerMonth >=  6) return { unit: 'month', step: 6 };
 
-  // Years (mid / low zoom)
-  if (pxPerYear  >= 120) return { unit: 'year',  step: 1 };   // every year
-  if (pxPerYear  >=  40) return { unit: 'year',  step: 10 };  // decades
-  if (pxPerYear  >=  12) return { unit: 'year',  step: 100 }; // centuries
+  if (pxPerYear  >= 120) return { unit: 'year',  step: 1 };
+  if (pxPerYear  >=  40) return { unit: 'year',  step: 10 };
+  if (pxPerYear  >=  12) return { unit: 'year',  step: 100 };
 
-  // Very zoomed out → millennia
   return { unit: 'year', step: 1000 };
 }
 // Align first tick using a fixed anchor (e.g., -5000 → -4000 → -3000 ...), avoiding year 0
@@ -819,17 +815,19 @@ function formatTickLabel(ts, unit) {
   const d = new Date(ts);
   const y = d.getUTCFullYear();
   if (unit === 'year') {
-    return formatYearHuman(y); // no year 0
+    return formatYearHuman(y); // BCE or CE
   }
   if (unit === 'month') {
     const m = d.getUTCMonth() + 1;
-    const yTxt = (y < 0) ? `${Math.abs(y)}\u202fBCE` : `${y}`;
+    const yTxt = (y < 0) ? `${Math.abs(y)} BCE` : `${y}`;
     return `${yTxt}-${String(m).padStart(2,'0')}`;
   }
-  // day
-  const m = d.getUTCMonth() + 1, day = d.getUTCDate();
-  const yTxt = (y < 0) ? `${Math.abs(y)}\u202fBCE` : `${y}`;
-  return `${yTxt}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  if (unit === 'day') {
+    const m = d.getUTCMonth() + 1, day = d.getUTCDate();
+    const yTxt = (y < 0) ? `${Math.abs(y)} BCE` : `${y}`;
+    return `${yTxt}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  }
+  return '';
 }
 function wrapText(ctx, text, maxWidth, font) {
   const words = String(text || '').split(/\s+/);
