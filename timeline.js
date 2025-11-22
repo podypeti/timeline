@@ -4,13 +4,23 @@ const MIN_YEAR = -5000;
 const MAX_YEAR = 2100;
 const INITIAL_CENTER_YEAR = -4000;            // első nézet középpontja
 const MIN_ZOOM = 0.2;                          // px / év
-const MAX_ZOOM = 500;                          // px / év
+const MAX_ZOOM = 12000;                        // ⬅️ deeper zoom (was 500)
 const LABEL_ANCHOR_YEAR = -5000;               // feliratozás horgonya
 const AVG_YEAR_DAYS = 365.2425;                // átlagos tropikus év hossza napokban
 
 // --- Clustering config ---
 const CLUSTER_BY = 'pixel';    // 'pixel' | 'year'
-const CLUSTER_PX = 22;         // pixel proximity threshold when CLUSTER_BY === 'pixel'
+// zoom-aware pixel threshold: clusters dissolve earlier at higher zoom
+function clusterPxThreshold() {
+  const ppy = scale; // pixels per year
+  if (ppy >= 800) return 6;     // very high zoom → tiny cluster radius
+  if (ppy >= 200) return 10;
+  if (ppy >= 60)  return 14;
+  return 22;                    // low zoom → generous clustering
+}
+
+// Labels appear only when zoom is reasonably high (to avoid clutter)
+const SHOW_LABEL_SCALE = 120;   // px/year threshold for drawing single labels
 
 // ===== DOM =====
 const canvas = document.getElementById('timelineCanvas');
@@ -36,7 +46,7 @@ let activeGroups = new Set();   // legend szűrés (custom módban használjuk)
 let groupColors = new Map();    // Group -> szín
 let groupChips = new Map();     // Group -> chip elem (class toggle-hoz)
 let filterMode = 'all';         // 'all' | 'none' | 'custom'
-let anchorJD = null;            // MIN_YEAR jan 1 00:00 JD
+let anchorJD = null;            // MIN_YEAR Jan 1 00:00 JD
 
 // ===== Utils =====
 function sizeCanvasToCss() {
@@ -272,7 +282,6 @@ function showClusterDetails(cluster) {
     <p class="meta">Click an item to open its details.</p>
   `;
   detailsPanel.classList.remove('hidden');
-  // event listeners
   detailsContent.querySelectorAll('.cluster-item').forEach(li => {
     li.addEventListener('click', () => {
       const idx = parseInt(li.dataset.idx,10);
@@ -304,6 +313,58 @@ function chooseTickScale(pxPerYear) {
   if (pxPerYear >= 60)  return { majorStep: 10, format: formatYearHuman, minor: { step: 1, len: 12 } };
   if (pxPerYear >= 18)  return { majorStep: 100, format: formatYearHuman, minor: { step: 10, len: 10 } };
   return { majorStep: 1000, format: formatYearHuman, minor: { step: 100, len: 8 } };
+}
+
+// ===== Label layout for single events (multi-rows + leader lines) =====
+function layoutSingleLabels(singleClusters, options = {}) {
+  const gap   = options.gap  ?? 10;    // minimum horizontal gap between labels
+  const rowsN = options.rows ?? 3;     // number of rows
+  const yBase = options.y    ?? 118;   // first row baseline
+  const dy    = options.dy   ?? 18;    // row spacing
+  const maxW  = options.maxW ?? 240;   // label width cap
+  const showLeader = options.leader ?? true;
+
+  const rows = Array.from({ length: rowsN }, () => ({ right: -Infinity, items: [] }));
+
+  // Measure and assign labels to rows with collision avoidance
+  singleClusters.forEach(c => {
+    const ev    = c.events[0];
+    const title = ev['Headline'] || ev['Text'] || '';
+    if (!title) return;
+
+    const labelW = Math.min(maxW, ctx.measureText(title).width + 6);
+    for (let r = 0; r < rowsN; r++) {
+      const row = rows[r];
+      if (c.centerX - labelW / 2 > row.right + gap) {
+        row.items.push({ x: c.centerX, w: labelW, text: title, dotY: c.y });
+        row.right = c.centerX + labelW / 2;
+        return;
+      }
+    }
+    // If none fits, push to the last row anyway (may overlap minimally)
+    const last = rows[rowsN - 1];
+    last.items.push({ x: c.centerX, w: labelW, text: title, dotY: c.y });
+    last.right = Math.max(last.right, c.centerX + labelW / 2);
+  });
+
+  // Draw labels row by row
+  ctx.fillStyle = '#111';
+  ctx.textBaseline = 'top';
+  ctx.font = '14px sans-serif';
+
+  rows.forEach((row, ri) => {
+    const y = yBase + ri * dy;
+    row.items.forEach(it => {
+      ctx.fillText(it.text, it.x + 8, y); // label text
+      if (showLeader) {
+        ctx.strokeStyle = '#00000022';
+        ctx.beginPath();
+        ctx.moveTo(it.x, it.dotY + 5); // from dot bottom
+        ctx.lineTo(it.x + 6, y);       // to label start
+        ctx.stroke();
+      }
+    });
+  });
 }
 
 // ===== Fő rajz =====
@@ -417,7 +478,6 @@ function draw() {
       const x = xForYear(startYearFloat);
       if (x > -50 && x < W / dpr + 50) {
         const color = getGroupColor(group);
-        // előkészítés a későbbi listára (Detailsben mutatjuk szépen)
         ev._labelDate = ev['Display Date'] || formatYearHuman(parseInt(ev['Year'],10));
         visiblePoints.push({
           ev, x, yLabel: rowYPoint, title, group, color,
@@ -428,7 +488,7 @@ function draw() {
     }
   });
 
-  // ====== 2) Klaszterezés ======
+  // ====== 2) Klaszterezés (zoom-aware pixel threshold) ======
   visiblePoints.sort((a,b) => a.x - b.x);
   const clusters = [];
   let current = null;
@@ -441,7 +501,7 @@ function draw() {
       continue;
     }
     const sameBucket =
-      (CLUSTER_BY === 'pixel') ? (Math.abs(p.x - current.centerX) <= CLUSTER_PX)
+      (CLUSTER_BY === 'pixel') ? (Math.abs(p.x - current.centerX) <= clusterPxThreshold())
                                : (p.yearKey === Math.round(current.centerYear));
     if (sameBucket) {
       current.events.push(p.ev);
@@ -465,12 +525,9 @@ function draw() {
   }
   pushCurrent();
 
-  // ====== 3) Klaszterek rajzolása (1 → pont labellel, >1 → buborék számmal) ======
+  // ====== 3) Klaszterek rajzolása (1 → dot, >1 → bubble with count) ======
   ctx.textBaseline = 'top';
   ctx.font = '14px sans-serif';
-
-  let lastRightLabel = -Infinity;
-  const labelGap = 10;
 
   clusters.forEach(cluster => {
     const n = cluster.events.length;
@@ -478,30 +535,16 @@ function draw() {
     const y = cluster.y;
 
     if (n === 1) {
-      // single event (pont + címke, ütközésgátlással)
+      // single event — draw dot now; labels handled later in multi-row layout
       const ev = cluster.events[0];
       const group = ev['Group'] || '';
       const col = getGroupColor(group);
-      const title = ev['Headline'] || ev['Text'] || '';
-
-      // pont
       ctx.fillStyle = col;
       ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
 
-      // címke (ha elfér)
-      if (title) {
-        const labelW = Math.min(220, ctx.measureText(title).width + 6);
-        if (x - labelW / 2 > lastRightLabel + labelGap) {
-          ctx.fillStyle = '#111';
-          ctx.fillText(title, x + 8, y + 8);
-          lastRightLabel = x + labelW / 2;
-        }
-      }
-
-      // hit-test
       drawHitRects.push({ kind:'point', ev, x: x - 6, y: y - 6, w: 12, h: 12 });
     } else {
-      // cluster marker
+      // cluster bubble
       const r = Math.min(14, 7 + Math.log2(n + 1));
       ctx.fillStyle = '#0077ff';
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
@@ -511,12 +554,17 @@ function draw() {
       ctx.font = '12px sans-serif'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
       ctx.fillText(String(n), x, y);
 
-      // hit-test rect
       drawHitRects.push({ kind:'cluster', cluster, x: x - (r+2), y: y - (r+2), w: (r+2)*2, h: (r+2)*2 });
     }
   });
 
-  // ===== END draw =====
+  // ====== 4) Multi-row label layout for singles (collision-avoiding, with leader lines) ======
+  const singles = clusters.filter(c => c.events.length === 1);
+  if (scale >= SHOW_LABEL_SCALE) {
+    layoutSingleLabels(singles, {
+      gap: 10, rows: 3, y: 118, dy: 18, maxW: 240, leader: true
+    });
+  }
 }
 
 // ===== Initialization =====
