@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,8 +6,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>History Timeline</title>
 
-  <!-- Correct stylesheet link -->
-  <link rel="stylesheet" href="style.css" />
+  <!-- Styles -->
+  style.css
 </head>
 <body>
   <!-- Legend and controls -->
@@ -36,6 +37,17 @@
     <div id="detailsContent"></div>
   </div>
 
-  <!-- Only external script; no inline JS here -->
-  <script src="timeline.js"></script>
+  <!-- Bottom pan slider -->
+  <div class="panSliderBar" aria-label="Timeline pan control">
+    <span class="panLabel">Center:</span>
+    <input id="panSlider" type="range"
+           min="-5000" max="2100" step="1" value="1"
+           aria-valuemin="-5000" aria-valuemax="2100" aria-valuenow="1"
+           aria-label="Center year (BCE/CE)">
+    <span id="panValue" class="panValue">1 CE</span>
+  </div>
+
+  <!-- Script -->
+  timeline.js</script>
 </body>
+</html>
