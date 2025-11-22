@@ -4,13 +4,14 @@ const MIN_YEAR = -5000;
 const MAX_YEAR = 2100;
 const INITIAL_CENTER_YEAR = -4000;            // első nézet középpontja
 const MIN_ZOOM = 0.2;                          // px / év
-const MAX_ZOOM = 12000;                        // ⬅️ deeper zoom (was 500)
+const MAX_ZOOM = 12000;                        // deeper zoom (was 500)
 const LABEL_ANCHOR_YEAR = -5000;               // feliratozás horgonya
 const AVG_YEAR_DAYS = 365.2425;                // átlagos tropikus év hossza napokban
 
 // --- Clustering config ---
 const CLUSTER_BY = 'pixel';    // 'pixel' | 'year'
-// zoom-aware pixel threshold: clusters dissolve earlier at higher zoom
+
+// Zoom-aware pixel threshold: clusters dissolve earlier at higher zoom
 function clusterPxThreshold() {
   const ppy = scale; // pixels per year
   if (ppy >= 800) return 6;     // very high zoom → tiny cluster radius
@@ -19,8 +20,8 @@ function clusterPxThreshold() {
   return 22;                    // low zoom → generous clustering
 }
 
-// Labels appear only when zoom is reasonably high (to avoid clutter)
-const SHOW_LABEL_SCALE = 120;   // px/year threshold for drawing single labels
+// Labels will be drawn at all zoom levels (we’ll manage clutter via multi-rows)
+const SHOW_LABEL_SCALE = 0;     // draw labels regardless of zoom
 
 // ===== DOM =====
 const canvas = document.getElementById('timelineCanvas');
@@ -315,13 +316,45 @@ function chooseTickScale(pxPerYear) {
   return { majorStep: 1000, format: formatYearHuman, minor: { step: 100, len: 8 } };
 }
 
-// ===== Label layout for single events (multi-rows + leader lines) =====
+// ===== Dynamic label layout helpers (multi-rows + leader lines) =====
+function rowsForScale() {
+  if (scale >= 800) return 4;
+  if (scale >= 200) return 3;
+  return 2;
+}
+function gapForScale() {
+  if (scale >= 200) return 8;
+  return 12;
+}
+function maxLabelWidthForScale() {
+  if (scale >= 800) return 320;
+  if (scale >= 200) return 240;
+  return 180;
+}
+// shorten a label so it fits into maxWidth (adds ellipsis)
+function shortenToFit(text, maxWidth) {
+  let t = text;
+  if (!t) return '';
+  if (ctx.measureText(t).width <= maxWidth) return t;
+  let lo = 0, hi = t.length;
+  while (lo < hi) {
+    const mid = ((lo + hi) >> 1);
+    const cand = t.slice(0, mid) + '…';
+    if (ctx.measureText(cand).width <= maxWidth) lo = mid + 1;
+    else hi = mid;
+  }
+  const final = t.slice(0, Math.max(1, lo - 1)) + '…';
+  return final;
+}
+
+// Layout multiple rows of labels with collision avoidance
 function layoutSingleLabels(singleClusters, options = {}) {
-  const gap   = options.gap  ?? 10;    // minimum horizontal gap between labels
-  const rowsN = options.rows ?? 3;     // number of rows
-  const yBase = options.y    ?? 118;   // first row baseline
-  const dy    = options.dy   ?? 18;    // row spacing
-  const maxW  = options.maxW ?? 240;   // label width cap
+  // dynamic defaults
+  const gap   = options.gap  ?? gapForScale();
+  const rowsN = options.rows ?? rowsForScale();
+  const yBase = options.y    ?? 118;
+  const dy    = options.dy   ?? 18;
+  const maxW  = options.maxW ?? maxLabelWidthForScale();
   const showLeader = options.leader ?? true;
 
   const rows = Array.from({ length: rowsN }, () => ({ right: -Infinity, items: [] }));
@@ -332,18 +365,21 @@ function layoutSingleLabels(singleClusters, options = {}) {
     const title = ev['Headline'] || ev['Text'] || '';
     if (!title) return;
 
-    const labelW = Math.min(maxW, ctx.measureText(title).width + 6);
+    const text  = shortenToFit(title, maxW);
+    const labelW = Math.min(maxW, ctx.measureText(text).width + 6);
+
+    // Try to place on an available row
     for (let r = 0; r < rowsN; r++) {
       const row = rows[r];
       if (c.centerX - labelW / 2 > row.right + gap) {
-        row.items.push({ x: c.centerX, w: labelW, text: title, dotY: c.y });
+        row.items.push({ x: c.centerX, w: labelW, text, dotY: c.y });
         row.right = c.centerX + labelW / 2;
         return;
       }
     }
-    // If none fits, push to the last row anyway (may overlap minimally)
+    // If none fits, force onto the last row (minimal overlap but guaranteed visibility)
     const last = rows[rowsN - 1];
-    last.items.push({ x: c.centerX, w: labelW, text: title, dotY: c.y });
+    last.items.push({ x: c.centerX, w: labelW, text, dotY: c.y });
     last.right = Math.max(last.right, c.centerX + labelW / 2);
   });
 
@@ -488,7 +524,7 @@ function draw() {
     }
   });
 
-  // ====== 2) Klaszterezés (zoom-aware pixel threshold) ======
+  // ====== 2) Klaszterezés (zoom-aware pixel threshold; auto dissolve at very high zoom) ======
   visiblePoints.sort((a,b) => a.x - b.x);
   const clusters = [];
   let current = null;
@@ -500,8 +536,9 @@ function draw() {
       current = { events:[p.ev], xs:[p.x], y:p.yLabel, groups:new Set([p.group]), colors:[p.color], centerX:p.x, centerYear:p.yearFloat };
       continue;
     }
+    const effPx = (scale >= 400 ? 0 : clusterPxThreshold());  // no clustering ≥ 400 px/year
     const sameBucket =
-      (CLUSTER_BY === 'pixel') ? (Math.abs(p.x - current.centerX) <= clusterPxThreshold())
+      (CLUSTER_BY === 'pixel') ? (Math.abs(p.x - current.centerX) <= effPx)
                                : (p.yearKey === Math.round(current.centerYear));
     if (sameBucket) {
       current.events.push(p.ev);
@@ -560,11 +597,16 @@ function draw() {
 
   // ====== 4) Multi-row label layout for singles (collision-avoiding, with leader lines) ======
   const singles = clusters.filter(c => c.events.length === 1);
-  if (scale >= SHOW_LABEL_SCALE) {
-    layoutSingleLabels(singles, {
-      gap: 10, rows: 3, y: 118, dy: 18, maxW: 240, leader: true
-    });
-  }
+
+  // Draw labels unconditionally (we manage clutter by rows/gaps/widths)
+  layoutSingleLabels(singles, {
+    gap: gapForScale(),
+    rows: rowsForScale(),
+    y: 118,
+    dy: 18,
+    maxW: maxLabelWidthForScale(),
+    leader: true
+  });
 }
 
 // ===== Initialization =====
