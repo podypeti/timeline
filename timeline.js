@@ -6,6 +6,7 @@ const INITIAL_CENTER_YEAR = -4000;            // első nézet középpontja
 const MIN_ZOOM = 0.2;                          // px / év
 const MAX_ZOOM = 500;                          // px / év
 const LABEL_ANCHOR_YEAR = -5000;               // feliratozás horgonya
+const AVG_YEAR_DAYS = 365.2425;                // átlagos tropikus év hossza napokban
 
 // ===== DOM =====
 const canvas = document.getElementById('timelineCanvas');
@@ -31,6 +32,7 @@ let activeGroups = new Set();   // legend szűrés (custom módban használjuk)
 let groupColors = new Map();    // Group -> szín
 let groupChips = new Map();     // Group -> chip elem (class toggle-hoz)
 let filterMode = 'all';         // 'all' | 'none' | 'custom'
+let anchorJD = null;            // MIN_YEAR jan 1 00:00 JD
 
 // ===== Utils =====
 function sizeCanvasToCss() {
@@ -50,10 +52,38 @@ function formatYearHuman(y) {
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function formatMonthYear(v) {
   const year = Math.floor(v);
-  const frac = v - year; // JS-ben negatív évnél is 0..1 közé esik
-  const mIndex = Math.floor(frac * 12); // 0..11
+  const frac = v - year;
+  const mIndex = Math.floor(frac * 12);
   const m = MONTHS[Math.max(0, Math.min(11, mIndex))];
   return year < 0 ? `${m} ${Math.abs(year)} BCE` : `${m} ${year}`;
+}
+
+// Nap/óra címkék (vizuális orientációhoz)
+function formatDay(v) {
+  const year = Math.floor(v);
+  const fracY = v - year;
+  const monthIdx = Math.floor(fracY * 12);
+  const monthStart = monthIdx / 12;
+  const dayFrac = fracY - monthStart;
+  const dayIndex = Math.floor(dayFrac * AVG_YEAR_DAYS / 12);
+  const labelYear = year < 0 ? `${Math.abs(year)} BCE` : `${year}`;
+  const labelMonth = MONTHS[Math.max(0, Math.min(11, monthIdx))];
+  return `${labelYear} · ${labelMonth} ${dayIndex + 1}`;
+}
+
+function formatHour(v) {
+  const year = Math.floor(v);
+  const fracY = v - year;
+  const monthIdx = Math.floor(fracY * 12);
+  const monthStart = monthIdx / 12;
+  const dayFrac = fracY - monthStart;
+  const dayIndex = Math.floor(dayFrac * AVG_YEAR_DAYS / 12);
+  const dayRemainder = (dayFrac * AVG_YEAR_DAYS / 12) - dayIndex;
+  const hour = Math.floor(dayRemainder * 24);
+  const labelYear = year < 0 ? `${Math.abs(year)} BCE` : `${year}`;
+  const labelMonth = MONTHS[Math.max(0, Math.min(11, monthIdx))];
+  const hh = String(hour).padStart(2, '0');
+  return `${labelYear} · ${labelMonth} ${dayIndex + 1}, ${hh}:00`;
 }
 
 function hashColor(str) {
@@ -70,8 +100,8 @@ function getGroupColor(group) {
   return groupColors.get(group);
 }
 
-function xForYear(year) {
-  return (year - MIN_YEAR) * scale + panX;
+function xForYear(yearFloat) {
+  return (yearFloat - MIN_YEAR) * scale + panX;
 }
 
 function yearForX(x) {
@@ -83,6 +113,46 @@ function isGroupVisible(group) {
   if (filterMode === 'none') return false;
   // custom
   return activeGroups.has(group);
+}
+
+// ===== Proleptikus Gergely → Julian Day Number (astronomical year) =====
+// Forrásalgoritmus (közismert JDN képlet) proleptikus Gergely-naptárra.
+// Megjegyzés: year=0 az 1 BCE-nek felel meg (astronomical numbering).
+function gregorianToJDN(y, m, d) {
+  const a = Math.floor((14 - m) / 12);
+  const y2 = y + 4800 - a;
+  const m2 = m + 12 * a - 3;
+  // JDN a polgári nap kezdetén (éjfélhez igazítva)
+  return d + Math.floor((153 * m2 + 2) / 5) + 365 * y2 + Math.floor(y2 / 4)
+       - Math.floor(y2 / 100) + Math.floor(y2 / 400) - 32045;
+}
+
+// Idő (HH:MM[:SS]) sztring → napi frakció
+function parseTimeFraction(s) {
+  if (!s) return 0;
+  const m = String(s).match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) return 0;
+  const h = Math.min(23, Math.max(0, parseInt(m[1],10)));
+  const mi = Math.min(59, Math.max(0, parseInt(m[2],10)));
+  const se = m[3] ? Math.min(59, Math.max(0, parseInt(m[3],10))) : 0;
+  return h/24 + mi/1440 + se/86400;
+}
+
+// Esemény dátum → év-tört (float) a MIN_YEAR Jan 1 00:00-hoz viszonyítva
+function dateToYearFloat(year, month=1, day=1, timeStr='') {
+  if (!Number.isFinite(year)) return NaN;
+  const m = Number.isFinite(month) ? Math.max(1, Math.min(12, month)) : 1;
+  const d = Number.isFinite(day)   ? Math.max(1, Math.min(31, day))   : 1;
+  const jdn = gregorianToJDN(year, m, d);
+  const frac = parseTimeFraction(timeStr);
+  // JD ~ JDN + időfrakció
+  const jd = jdn + frac;
+  if (anchorJD == null) {
+    // Anchor: MIN_YEAR Jan 1 00:00
+    anchorJD = gregorianToJDN(MIN_YEAR, 1, 1);
+  }
+  const daysFromAnchor = jd - anchorJD;
+  return MIN_YEAR + (daysFromAnchor / AVG_YEAR_DAYS);
 }
 
 // ===== Rounded-rect fallback (Path2D) =====
@@ -225,7 +295,11 @@ function buildLegend() {
 
 // ===== Details panel =====
 function showDetails(ev) {
-  const displayDate = ev['Display Date'] || formatYearHuman(parseInt(ev['Year'], 10));
+  const baseYear = parseInt(ev['Year'], 10);
+  const displayDate =
+    ev['Display Date'] ||
+    (Number.isFinite(baseYear) ? formatYearHuman(baseYear) : '');
+
   const headline = ev['Headline'] || '';
   const text = ev['Text'] || '';
   const media = ev['Media'] || '';
@@ -248,25 +322,47 @@ function escapeAttr(s){ return escapeHtml(s).replace(/'/g,'&#39;'); }
 
 // ===== Tick scale (zoom-függő részletesség) =====
 function chooseTickScale(pxPerYear) {
-  // részletesedés zoomnál:
-  // 1000y → 100y → 10y → 1y → hónapok
+  // RÉSZLETES SKÁLA: 1000y → 100y → 10y → 1y → hónap → nap → óra
+  if (pxPerYear >= 8000) {
+    // ÓRA szint – major: 1 óra (év-frakció), minor: ~10 perc
+    const hour = 1 / (AVG_YEAR_DAYS * 24);
+    return {
+      majorStep: hour,
+      format: (v) => formatHour(v),
+      minor: { step: hour / 6, len: 10, faint: true }
+    };
+  }
+  if (pxPerYear >= 1200) {
+    // NAP szint – major: 1 nap, minor: ~2 óra
+    const day = 1 / AVG_YEAR_DAYS;
+    return {
+      majorStep: day,
+      format: (v) => formatDay(v),
+      minor: { step: day / 12, len: 12, faint: true }
+    };
+  }
   if (pxPerYear >= 600) {
-    // hónapok mint fő beosztás (major step = 1/12 év)
-    return { majorStep: 1/12, format: formatMonthYear, minor: null };
+    // HÓNAP szint – major: 1/12 év, minor: 1/48 év (kb. heti)
+    const month = 1 / 12;
+    return {
+      majorStep: month,
+      format: (v) => formatMonthYear(v),
+      minor: { step: month / 4, len: 14, faint: true }
+    };
   }
   if (pxPerYear >= 200) {
-    // 1 év fő beosztás, negyedéves minor ticks
+    // ÉV szint – major: 1 év, minor: negyedév
     return { majorStep: 1, format: (v)=>formatYearHuman(Math.round(v)), minor: { step: 0.25, len: 14 } };
   }
   if (pxPerYear >= 60) {
-    // 10 év fő beosztás, 1 év minor
+    // 10 év major, 1 év minor
     return { majorStep: 10, format: formatYearHuman, minor: { step: 1, len: 12 } };
   }
   if (pxPerYear >= 18) {
-    // 100 év fő beosztás, 10 év minor
+    // 100 év major, 10 év minor
     return { majorStep: 100, format: formatYearHuman, minor: { step: 10, len: 10 } };
   }
-  // alap: 1000 év fő, 100 év minor
+  // alap: 1000 év major, 100 év minor
   return { majorStep: 1000, format: formatYearHuman, minor: { step: 100, len: 8 } };
 }
 
@@ -286,17 +382,24 @@ function draw() {
 
   const { majorStep, format, minor } = chooseTickScale(scale);
 
-  // minor ticks (kisebb beosztások) – vékonyabb vonalak
+  // minor ticks – vékony vonalak; ha faint, halvány rács a teljes magasságban
   if (minor && minor.step) {
     const startMinor = Math.ceil(MIN_YEAR / minor.step) * minor.step;
     for (let m = startMinor; m < MAX_YEAR; m += minor.step) {
       const mx = xForYear(m);
       if (mx > -80 && mx < W + 80) {
-        ctx.strokeStyle = '#00000015';
+        ctx.strokeStyle = minor.faint ? '#00000010' : '#00000015';
         ctx.beginPath();
         ctx.moveTo(mx, 0);
         ctx.lineTo(mx, minor.len);
         ctx.stroke();
+        if (minor.faint) {
+          ctx.strokeStyle = '#00000008';
+          ctx.beginPath();
+          ctx.moveTo(mx, 0);
+          ctx.lineTo(mx, H / dpr);
+          ctx.stroke();
+        }
       }
     }
   }
@@ -304,7 +407,7 @@ function draw() {
   // major ticks + címkék („pill”)
   let t = Math.ceil((MIN_YEAR - LABEL_ANCHOR_YEAR) / majorStep) * majorStep + LABEL_ANCHOR_YEAR;
   let lastRight = -Infinity;
-  const gap = 12;
+  const gap = 10;
   const pillY = 16;
 
   while (t < MAX_YEAR) {
@@ -317,9 +420,9 @@ function draw() {
       ctx.lineTo(x, 40);
       ctx.stroke();
 
-      // felirat „pill”-ben (ütközésgátlással)
+      // felirat „pill”-ben (ütközésgátlással + felső korlát)
       const text = format(t);
-      const pillW = ctx.measureText(text).width + 10;
+      const pillW = Math.min(160, ctx.measureText(text).width + 10);
       const pillH = 20;
       if (x - pillW / 2 > lastRight + gap) {
         fillStrokeRoundedRect(x - pillW / 2, pillY, pillW, pillH, 6, '#ffffffee', '#00000022');
@@ -328,17 +431,24 @@ function draw() {
         ctx.fillText(text, x - pillW / 2 + 5, pillY + pillH / 2);
         lastRight = x + pillW / 2;
       }
+      // ha nem fér el, marad a tick, címke nélkül
     }
     t += majorStep;
   }
   ctx.restore();
 
-  // középvonal
+  // középvonal + közép-év felirat
   ctx.strokeStyle = '#00000033';
   ctx.beginPath();
   ctx.moveTo(W / dpr / 2, 0);
   ctx.lineTo(W / dpr / 2, H / dpr);
   ctx.stroke();
+  const centerYear = Math.round(yearForX(canvas.clientWidth / 2));
+  const centerLabel = formatYearHuman(centerYear);
+  ctx.fillStyle = '#00000066';
+  ctx.font = '12px sans-serif';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(centerLabel, (W / dpr / 2) + 6, H / dpr - 6);
 
   // esemény-sáv Y pozíciók
   const rowYPoint = 110;    // pontok sora
@@ -350,35 +460,35 @@ function draw() {
 
   events.forEach(ev => {
     const group = ev['Group'] || '';
-    if (!isGroupVisible(group)) return;  // <<< javított szűrés
+    if (!isGroupVisible(group)) return;
 
     const col = getGroupColor(group);
 
-    // Year + Month + Day → frakciós év, ha vannak mezők
-    let yVal = parseInt(ev['Year'], 10);
-    const mVal = parseInt(ev['Month'], 10);
-    const dVal = parseInt(ev['Day'], 10);
-    if (Number.isFinite(yVal)) {
-      const monthFrac = Number.isFinite(mVal) ? (Math.max(1, Math.min(12, mVal)) - 1) / 12 : 0;
-      const dayFrac = Number.isFinite(dVal) ? Math.max(0, Math.min(31, dVal - 1)) / 365 : 0;
-      yVal = yVal + monthFrac + dayFrac;
+    // Precíz év-tört számítás JDN alapján
+    let baseYear = parseInt(ev['Year'], 10);
+    let startYearFloat = NaN;
+    if (Number.isFinite(baseYear)) {
+      const mVal = parseInt(ev['Month'], 10);
+      const dVal = parseInt(ev['Day'], 10);
+      const tVal = ev['Time'] || '';
+      startYearFloat = dateToYearFloat(baseYear, mVal, dVal, tVal);
     }
 
-    let endYVal = parseInt(ev['End Year'], 10);
-    const endM  = parseInt(ev['End Month'], 10);
-    const endD  = parseInt(ev['End Day'], 10);
-    if (Number.isFinite(endYVal)) {
-      const monthFrac = Number.isFinite(endM) ? (Math.max(1, Math.min(12, endM)) - 1) / 12 : 0;
-      const dayFrac = Number.isFinite(endD) ? Math.max(0, Math.min(31, endD - 1)) / 365 : 0;
-      endYVal = endYVal + monthFrac + dayFrac;
+    let endYear = parseInt(ev['End Year'], 10);
+    let endYearFloat = NaN;
+    if (Number.isFinite(endYear)) {
+      const endM  = parseInt(ev['End Month'], 10);
+      const endD  = parseInt(ev['End Day'], 10);
+      const endT  = ev['End Time'] || '';
+      endYearFloat = dateToYearFloat(endYear, endM, endD, endT);
     }
 
     const title = ev['Headline'] || ev['Text'] || '';
 
-    if (Number.isFinite(yVal) && Number.isFinite(endYVal)) {
+    if (Number.isFinite(startYearFloat) && Number.isFinite(endYearFloat)) {
       // időszak (sáv)
-      const x1 = xForYear(yVal);
-      const x2 = xForYear(endYVal);
+      const x1 = xForYear(startYearFloat);
+      const x2 = xForYear(endYearFloat);
       const xL = Math.min(x1, x2);
       const xR = Math.max(x1, x2);
       if (xR > -50 && xL < W / dpr + 50) {
@@ -391,9 +501,9 @@ function draw() {
         }
         drawHitRects.push({ kind: 'bar', ev, x: xL, y: rowYBar, w: Math.max(4, xR - xL), h: 16 });
       }
-    } else if (Number.isFinite(yVal)) {
+    } else if (Number.isFinite(startYearFloat)) {
       // pont
-      const x = xForYear(yVal);
+      const x = xForYear(startYearFloat);
       if (x > -50 && x < W / dpr + 50) {
         ctx.fillStyle = col;
         ctx.beginPath();
@@ -420,6 +530,9 @@ function initScaleAndPan() {
 }
 
 async function init() {
+  // Anchor JD előkészítése
+  anchorJD = gregorianToJDN(MIN_YEAR, 1, 1);
+
   initScaleAndPan();
   // CSV betöltés
   try {
@@ -493,7 +606,6 @@ canvas.addEventListener('click', (e) => {
   const rect = canvas.getBoundingClientRect();
   const x = (e.clientX - rect.left);
   const y = (e.clientY - rect.top);
-  // végigmegyünk a drawHitRects tömbön (utolsóként rajzolt elemek előnyben)
   for (let i = drawHitRects.length - 1; i >= 0; i--) {
     const p = drawHitRects[i];
     if (x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h) {
