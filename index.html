@@ -9,8 +9,10 @@
   <!-- External CSS -->
   ./style.css
 
-  <!-- Use prefetch instead of preload to avoid DevTools warning -->
-  <link rel="prefetch" href="./nline fallback CSS -->
+  <!-- (Optional) Use prefetch, not preload, to avoid DevTools warning -->
+  ./timeline-data.csv
+
+  <!-- Inline fallback CSS -->
   <style>
     :root { --bg:#f7f7f7; --ink:#000; --chip:#fff; --chip-b:#0001; --shadow:#0003; --accent:#222; }
     html, body { height:100%; }
@@ -73,7 +75,7 @@
   </div>
 
   <!-- Details panel -->
-  <div id="detailsPanel" class="details hidden" role="dialog" aria-modal="true" aria-labelledby="detailsTitle">
+  <div id="detailsPanel" class="details hidden" role="dialog" aria-modal="true">
     <button id="detailsClose" class="close" aria-label="Close">×</button>
     <div id="detailsContent"></div>
   </div>
