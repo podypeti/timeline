@@ -6,60 +6,54 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>History Timeline</title>
 
-  <!-- External CSS -->
-  ./style.css?v=6
+  <!-- Külső CSS – VALÓDI LINK TAG -->
+  ./style.css?v=7
 
-  <!-- Optional: prefetch CSV (no strict timing expectation like preload) -->
-  ./timeline-data.csv
+  <!-- (Opció) CSV előre letöltése – VALÓDI LINK TAG -->
+  </timeline-data.csv
 
-  <!-- Minimal inline fallback just to guarantee a visible canvas -->
+  <!-- Minimális fallback CSS, hogy a vászon látszódjon -->
   <style>
     html,body { height: 100%; }
-    body { margin: 0; background: #f7f7f7; font-family: Arial, sans-serif; color: #000; }
-    #timelineCanvas { width: 100%; height: 560px; display: block; }
+    body { margin:0; background:#f7f7f7; font-family: Arial, sans-serif; color:#000; }
+    #timelineCanvas { width:100%; height:560px; display:block; background:#fff; }
   </style>
 </head>
 <body>
-  <!-- Legend and controls -->
+  <!-- Legend + vezérlők -->
   <div class="legendControls">
     <div class="inner">
       <span class="legendTitle">Legend</span>
       <div id="legend" class="legend"></div>
       <div class="spacer"></div>
-
-      <!-- Zoom buttons -->
       <button id="zoomOut" class="ghost" aria-label="Zoom out">−</button>
-      <button id="zoomIn" class="ghost" aria-label="Zoom in">+</button>
-
-      <!-- Reset zoom & center -->
+      <button id="zoomIn"  class="ghost" aria-label="Zoom in">+</button>
       <button id="resetZoom" class="ghost" aria-label="Reset zoom and center">Reset</button>
     </div>
   </div>
 
-  <!-- Timeline canvas -->
+  <!-- Vászon -->
   <div id="timelineContainer">
     <canvas id="timelineCanvas" width="800" height="600"></canvas>
   </div>
 
-  <!-- Details panel -->
+  <!-- Részletek panel -->
   <div id="detailsPanel" class="details hidden" role="dialog" aria-modal="true">
     <button id="detailsClose" class="close" aria-label="Close">×</button>
     <div id="detailsContent"></div>
   </div>
 
-  <!-- Bottom pan slider -->
+  <!-- Alsó csúszka -->
   <div class="panSliderBar" aria-label="Timeline pan control">
     <span class="panLabel">Center:</span>
-    <input id="panSlider" type="range"
-           min="-5000" max="2100" step="1" value="1"
-           aria-valuemin="-5000" aria-valuemax="2100" aria-valuenow="1"
-           aria-label="Center year (BCE/CE)">
+    <input id="panSlider" type="range" min="-5000" max="2100" step="1" value="1" aria-label="Center year (BCE/CE)">
     <span id="panValue" class="panValue">1 CE</span>
   </div>
 
-  <!-- Scripts -->
-  <noscript>This page requires JavaScript to render the timeline.</noscript>
-  <!-- Defer ensures the DOM is parsed before the script runs; v=6 busts CDN/browser cache -->
-  ./timeline.js?v=6</script>
+  <!-- Ellenőrző inline szkript (csak logol) -->
+  <script>console.log('[probe] inline script executed');</script>
+
+  <!-- ALKALMAZÁS SZKRIPT – VALÓDI SCRIPT TAG, cache-buster paraméterrel -->
+  ./timeline.js?v=7</script>
 </body>
 </html>
