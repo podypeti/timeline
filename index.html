@@ -10,7 +10,7 @@
   ./style.css?v=7
 
   <!-- (Opció) CSV előre letöltése – VALÓDI LINK TAG -->
-  </timeline-data.csv
+  ./timeline-data.csv
 
   <!-- Minimális fallback CSS, hogy a vászon látszódjon -->
   <style>
@@ -50,15 +50,12 @@
     <span id="panValue" class="panValue">1 CE</span>
   </div>
 
+  <!-- Inline probe (optional) -->
+  <script>
+    console.log('[probe] inline script executed');
+  </script>
 
-<!-- Inline probe (optional) -->
-<script>
-  console.log('[probe] inline script executed');
-</script>
-
-<!-- Load the external app script -->
-./timeline.js?v=7</script>
-
-
+  <!-- Load the external app script – VALÓDI SCRIPT TAG -->
+  ./timeline.js?v=7</script>
 </body>
 </html>
