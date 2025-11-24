@@ -392,22 +392,22 @@ detailsClose.addEventListener('click', hideDetails);
 
 // ===== Ticks =====
 function chooseTickScale(pxPerYear) {
-  if (pxPerYear >= 8000) {
-    const hour = 1 / (AVG_YEAR_DAYS * 24);
-    return { majorStep: hour, format: v => formatHour(v), minor: { step: hour / 6, len: 10, faint: true } };
-  }
-  if (pxPerYear >= 1200) {
-    const day = 1 / AVG_YEAR_DAYS;
-    return { majorStep: day, format: v => formatDay(v), minor: { step: day / 12, len: 12, faint: true } };
-  }
-  if (pxPerYear >= 600) {
-    const month = 1 / 12;
-    return { majorStep: month, format: v => formatMonthYear(v), minor: { step: month / 4, len: 14, faint: true } };
-  }
-  if (pxPerYear >= 200) return { majorStep: 1, format: v => formatYearHuman(Math.round(v)), minor: { step: 0.25, len: 14 } };
-  if (pxPerYear >= 60) return { majorStep: 10, format: formatYearHuman, minor: { step: 1, len: 12 } };
-  if (pxPerYear >= 18) return { majorStep: 100, format: formatYearHuman, minor: { step: 10, len: 10 } };
-  return { majorStep: 1000, format: formatYearHuman, minor: { step: 100, len: 8 } };
+  if (pxPerYear >= 3000)
+    return { majorStep: 1/12, format: v => formatMonthYear(v), minor: { step: 1/48, len: 12, faint: true } };
+
+  if (pxPerYear >= 800)
+    return { majorStep: 1, format: v => formatYearHuman(Math.round(v)), minor: { step: 1/12, len: 12 } };
+
+  if (pxPerYear >= 200)
+    return { majorStep: 10, format: formatYearHuman, minor: { step: 1, len: 10 } };
+
+  if (pxPerYear >= 40)
+    return { majorStep: 100, format: formatYearHuman, minor: { step: 10, len: 8 } };
+
+  if (pxPerYear >= 8)
+    return { majorStep: 500, format: formatYearHuman, minor: { step: 100, len: 6 } };
+
+  return { majorStep: 1000, format: formatYearHuman, minor: { step: 500, len: 6 } };
 }
 
 // ===== Label layout helpers =====
