@@ -407,11 +407,11 @@ function formatMonthSmart(yearFloat, targetWidthPx) {
 
   // Candidate forms ordered from longest → shortest
   const options = [
-    `${monthName} ${yFull}`,           // "March 1245 CE"
-    `${monthName} ${yShort}`,          // "March 1245"
-    `${monthName.slice(0,3)} ${yShort}`, // "Mar 1245"
-    `${monthLetter} ${yShort}`,        // "M 1245"
-    `${monthNumber}/${yShort}`,        // "3/1245"
+    `${monthName}`,           
+    `${monthName}`,          
+    `${monthName.slice(0,3)}`, 
+    `${monthLetter}`,        
+    `${monthNumber}`,        
   ];
 
   ctx.font = "14px sans-serif"; // ensure consistent measurement
@@ -421,7 +421,7 @@ function formatMonthSmart(yearFloat, targetWidthPx) {
   }
 
   // If nothing fits, return the tightest numeric form
-  return `${monthNumber}/${yShort}`;
+  return `${monthNumber}`;
 }
 
 // ===== Adaptive plural-step + dynamic tick selection =====
