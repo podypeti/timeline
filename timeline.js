@@ -2,7 +2,7 @@
 console.log('[timeline] script loaded v6');
 
 const ASSET_VERSION = '6';
-const MIN_YEAR = -5000;
+const MIN_YEAR = -4050;
 const MAX_YEAR = 2100;
 const INITIAL_CENTER_YEAR = 1; // center at 1 CE
 const MIN_ZOOM = 0.2;
