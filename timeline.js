@@ -392,24 +392,61 @@ detailsClose.addEventListener('click', hideDetails);
 
 // ===== Ticks =====
 function chooseTickScale(pxPerYear) {
-  if (pxPerYear >= 3000)
-    return { majorStep: 1/12, format: v => formatMonthYear(v), minor: { step: 1/48, len: 12, faint: true } };
+  // Smooth labeling steps
+  if (pxPerYear >= 4000) {
+    // Days
+    const day = 1 / AVG_YEAR_DAYS;
+    return {
+      majorStep: day,
+      format: v => formatDay(v),
+      minor: { step: day / 6, len: 10, faint: true }
+    };
+  }
 
-  if (pxPerYear >= 800)
-    return { majorStep: 1, format: v => formatYearHuman(Math.round(v)), minor: { step: 1/12, len: 12 } };
+  if (pxPerYear >= 1800) {
+    // Months
+    const month = 1 / 12;
+    return {
+      majorStep: month,
+      format: v => formatMonthYear(v),
+      minor: { step: month / 4, len: 12, faint: true }
+    };
+  }
 
-  if (pxPerYear >= 200)
-    return { majorStep: 10, format: formatYearHuman, minor: { step: 1, len: 10 } };
+  if (pxPerYear >= 450) {
+    // Years
+    return {
+      majorStep: 1,
+      format: v => formatYearHuman(Math.round(v)),
+      minor: { step: 1 / 12, len: 12 }
+    };
+  }
 
-  if (pxPerYear >= 40)
-    return { majorStep: 100, format: formatYearHuman, minor: { step: 10, len: 8 } };
+  if (pxPerYear >= 120) {
+    // Decades
+    return {
+      majorStep: 10,
+      format: formatYearHuman,
+      minor: { step: 1, len: 10 }
+    };
+  }
 
-  if (pxPerYear >= 8)
-    return { majorStep: 500, format: formatYearHuman, minor: { step: 100, len: 6 } };
+  if (pxPerYear >= 15) {
+    // Centuries
+    return {
+      majorStep: 100,
+      format: formatYearHuman,
+      minor: { step: 10, len: 8 }
+    };
+  }
 
-  return { majorStep: 1000, format: formatYearHuman, minor: { step: 500, len: 6 } };
+  // Default far zoom: millennia
+  return {
+    majorStep: 1000,
+    format: formatYearHuman,
+    minor: { step: 100, len: 8 }
+  };
 }
-
 // ===== Label layout helpers =====
 function rowsForScale() { if (scale >= 800) return 4; if (scale >= 200) return 3; return 2; }
 function gapForScale() { if (scale >= 200) return 8; return 12; }
