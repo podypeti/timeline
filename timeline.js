@@ -383,9 +383,6 @@ function buildLegend() {
 }
 
 
-
-buildLegend();
-
 // Search filter
 document.getElementById('legendSearch').addEventListener('input', e => {
   const term = e.target.value.toLowerCase();
@@ -916,9 +913,6 @@ async function init() {
   }
 }
   draw();
-
-buildLegend();
-draw();
 
 // ===== Zoom / Pan =====
 function zoomTo(newScale, anchorX = canvas.clientWidth / 2) {
