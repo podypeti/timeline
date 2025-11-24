@@ -53,29 +53,88 @@ body { margin: 0; background: var(--bg); font-family: Arial, sans-serif; color: 
 
 .legend-panel {
   border: 1px solid #ddd;
-  border-radius: 8px;
+  border-radius: 10px;
   background: #fff;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  padding: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
   max-width: 280px;
+  font-family: sans-serif;
 }
 
 .legend-panel summary {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 15px;
+  padding: 10px;
   cursor: pointer;
-  padding: 6px;
   list-style: none;
-}
-
-.legend-panel[open] summary::after {
-  content: "▲";
-  float: right;
 }
 
 .legend-panel summary::after {
   content: "▼";
   float: right;
+  font-size: 12px;
 }
 
+.legend-panel[open] summary::after {
+  content: "▲";
+}
 
+.legend-content {
+  padding: 8px;
+}
+
+#legendSearch {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.chip-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 13px;
+  border-radius: 16px;
+  background: #f7f7f7;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.chip:hover {
+  background: #eaeaea;
+}
+
+.chip.inactive {
+  opacity: 0.5;
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.swatch.green { background: #2c7; }
+.swatch.red { background: #c33; }
+
+#legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.chip-icon {
+  margin-right: 6px;
+  font-size: 14px;
