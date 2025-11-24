@@ -298,7 +298,11 @@ function getGroupColor(group) {
   return colorMap[group] || '#999';
 }
 
+
 function buildLegend() {
+  // Extract unique groups from events loaded from CSV
+  const groups = [...new Set(events.map(e => e['Group']).filter(Boolean))].sort();
+
   legendEl.innerHTML = '';
   groupChips.clear();
 
@@ -331,7 +335,7 @@ function buildLegend() {
         activeGroups.add(g);
         chip.classList.remove('inactive');
       }
-      console.log('Active groups:', [...activeGroups]);
+      draw();
     });
 
     legendEl.appendChild(chip);
@@ -339,6 +343,7 @@ function buildLegend() {
     activeGroups.add(g);
   });
 }
+
 
 buildLegend();
 
@@ -868,6 +873,10 @@ async function init() {
   }
   draw();
 }
+
+events = await loadCsv(`./timeline-data.csv?v=${ASSET_VERSION}`);
+buildLegend();
+draw();
 
 // ===== Zoom / Pan =====
 function zoomTo(newScale, anchorX = canvas.clientWidth / 2) {
