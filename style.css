@@ -49,3 +49,31 @@ body { margin: 0; background: var(--bg); font-family: Arial, sans-serif; color: 
 .panSliderBar .panLabel { font-size: .9rem; color: #333; }
 #panSlider { flex: 1; height: 24px; }
 .panValue { min-width: 80px; text-align: right; font-weight: 600; color: #111; }
+
+.legend-panel summary {
+  cursor: pointer;
+  font-weight: bold;
+  padding: 6px;
+}
+
+#legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 12px;
+  background: #f0f0f0;
+  cursor: pointer;
+}
+
+.chip.inactive {
+  opacity: 0.4;
+}
+
