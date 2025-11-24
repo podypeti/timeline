@@ -302,13 +302,48 @@ function getGroupColor(group) {
 }
 
 
+
 function buildLegend() {
-  // Extract unique groups from events loaded from CSV
+  // Extract unique categories from CSV
   const groups = [...new Set(events.map(e => e['Group']).filter(Boolean))].sort();
 
   legendEl.innerHTML = '';
   groupChips.clear();
 
+  // Admin chips
+  const addAdminChip = (label, onClick, color = '#444') => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.dataset.admin = label;
+
+    const sw = document.createElement('span');
+    sw.className = 'swatch';
+    sw.style.background = color;
+
+    const text = document.createElement('span');
+    text.textContent = label;
+
+    chip.appendChild(sw);
+    chip.appendChild(text);
+    chip.addEventListener('click', onClick);
+    legendEl.appendChild(chip);
+  };
+
+  addAdminChip('All', () => {
+    activeGroups = new Set(groups);
+    filterMode = 'all';
+    groupChips.forEach(chip => chip.classList.remove('inactive'));
+    draw();
+  }, '#2c7');
+
+  addAdminChip('None', () => {
+    activeGroups.clear();
+    filterMode = 'none';
+    groupChips.forEach(chip => chip.classList.add('inactive'));
+    draw();
+  }, '#c33');
+
+  // Build chips dynamically from CSV groups
   groups.forEach(g => {
     const chip = document.createElement('div');
     chip.className = 'chip';
@@ -346,6 +381,7 @@ function buildLegend() {
     activeGroups.add(g);
   });
 }
+
 
 
 buildLegend();
@@ -860,20 +896,25 @@ function initScaleAndPan() {
   panSlider.value = String(INITIAL_CENTER_YEAR);
   setPanValueLabel(INITIAL_CENTER_YEAR);
 }
+
 async function init() {
   anchorJD = gregorianToJDN(MIN_YEAR, 1, 1);
   initScaleAndPan();
-
-  // Draw baseline axes & center line immediately (so you see something even before data loads)
-  draw();
+  draw(); // initial empty draw
 
   try {
+    // Load CSV data
     events = await loadCsv(`./timeline-data.csv?v=${ASSET_VERSION}`);
     console.log('[timeline] events loaded:', events.length);
+
+    // Build legend AFTER events are loaded
+    buildLegend();
+    draw(); // redraw with data
   } catch (e) {
-    console.error('CSV betöltési hiba:', e);
+    console.error('CSV load error:', e);
     events = [];
   }
+}
   draw();
 }
 
