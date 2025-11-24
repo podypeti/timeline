@@ -55,7 +55,9 @@ function sizeCanvasToCss() {
 }
 
 function formatYearHuman(y) {
-  return y < 0 ? `${Math.abs(y)} BCE` : `${y} CE`;
+if (y < 0) return ${Math.abs(y)} BCE;
+if (y > 0) return ${y} CE;
+return '1 CE'; // force 0 to become 1 CE
 }
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
