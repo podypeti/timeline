@@ -1,29 +1,11 @@
 
 <!DOCTYPE html>
 <html lang="en">
-  
-
-<details class="legend-panel">
-  <summary>Categories</summary>
-  <div class="legend-content">
-    <input type="text" id="legendSearch" placeholder="Search categories..." />
-    <div class="chip-row">
-      <div class="chip admin" data-admin="all"><span class="swatch green"></span>All</div>
-      <div class="chip admin" data-admin="none"><span class="swatch red"></span>None</div>
-    </div>
-    <div id="legend"></div>
-  </div>
-</details>
-
-
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>History Timeline</title>
-
-  <!-- Külső CSS -->
-<link rel="stylesheet" href="./style.css">
-
+  ./style.css
   <style>
     html,body { height: 100%; }
     body { margin:0; background:#f7f7f7; font-family: Arial, sans-serif; color:#000; }
@@ -31,10 +13,25 @@
   </style>
 </head>
 <body>
+
+  <!-- Modern Dropdown -->
+  <details class="legend-panel">
+    <summary>Categories</summary>
+    <div class="legend-content">
+      <input type="text" id="legendSearch" placeholder="Search categories..." />
+      <div class="chip-row">
+        <div class="chip admin" data-admin="all"><span class="swatch green"></span>All</div>
+        <div class="chip admin" data-admin="none"><span class="swatch red"></span>None</div>
+      </div>
+      <div id="legend"></div>
+    </div>
+  </details>
+
+  <!-- Timeline Controls -->
   <div class="legendControls">
     <div class="inner">
       <span class="legendTitle">Legend</span>
-      <div id="legend" class="legend"></div>
+      <!-- REMOVE or rename old legend div -->
       <div class="spacer"></div>
       <button id="zoomOut" class="ghost" aria-label="Zoom out">−</button>
       <button id="zoomIn"  class="ghost" aria-label="Zoom in">+</button>
@@ -57,9 +54,7 @@
     <span id="panValue" class="panValue">1 CE</span>
   </div>
 
-  <!-- Inline probe -->
-  <script>console.log('[probe] inline script executed');</script>
-
-  <!-- Külső JS — VALÓDI SCRIPT TAG -->
-<script src="./timeline.js"></script>
+  <!-- External JS -->
+  ./timeline.js</script>
+</body>
 </html>
