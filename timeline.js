@@ -549,7 +549,34 @@ function chooseTickScale(pxPerYear) {
     // Normal rule for all other scales
     if (fits) return { majorStep: c.majorStep, format: c.format };
   }
+function formatMonthSmart(yearFloat, targetWidthPx) {
+  const year = Math.floor(yearFloat);
+  const frac = yearFloat - year;
+  const mIndex = Math.floor(frac * 12);
+  const monthName = MONTHS[mIndex];   // Jan, Feb, Mar...
+  const monthLetter = monthName[0];   // J, F, M
+  const monthNumber = (mIndex + 1);   // 1..12
 
+  const y = year < 0 ? `${Math.abs(year)} BCE` : `${year} CE`;
+
+  // Try longest → shortest until one fits
+  const options = [
+    `${monthName} ${y}`,       // "March 1245 CE"
+    `${monthName.slice(0,3)} ${y}`, // "Mar 1245"
+    `${monthLetter} ${year}`,  // "M 1245"
+    `${monthNumber}/${year}`,  // "3/1245"
+  ];
+
+  ctx.font = "14px sans-serif"; // ensure correct measurement
+
+  for (const opt of options) {
+    if (ctx.measureText(opt).width <= targetWidthPx)
+      return opt;
+  }
+
+  // fallback (extremely tight)
+  return `${monthNumber}/${year}`;
+}
   // --- MONTH FALLBACK ---
   // If years fit but months *almost* fit,
   // we allow a “soft monthly” mode to fill the large gap.
