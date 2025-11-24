@@ -874,7 +874,6 @@ async function init() {
   draw();
 }
 
-events = await loadCsv(`./timeline-data.csv?v=${ASSET_VERSION}`);
 buildLegend();
 draw();
 
