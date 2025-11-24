@@ -916,7 +916,6 @@ async function init() {
   }
 }
   draw();
-}
 
 buildLegend();
 draw();
