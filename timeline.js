@@ -31,22 +31,7 @@ const detailsClose = document.getElementById('detailsClose');
 const detailsContent = document.getElementById('detailsContent');
 const panSlider = document.getElementById('panSlider');
 const panValue = document.getElementById('panValue');
-(async function () {
-  try {
-    const csvUrl = "https://raw.githubusercontent.com/podypeti/timeline/main/timeline-data.csv";
 
-    events = await loadCsv(csvUrl);
-
-    console.log("Loaded events:", events);
-
-    buildLegend();   // categories
-    normalizeEvents();
-    clusterEvents();
-    draw();
-  } catch (err) {
-    console.error("CSV load failed:", err);
-  }
-})();
 // ===== State =====
 let dpr = Math.max(1, window.devicePixelRatio || 1);
 let W = 0, H = 0;
