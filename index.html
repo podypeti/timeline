@@ -49,7 +49,7 @@
   </div>
 
   <!-- Scripts -->
-  ./timeline.js</script>
+  <script src="./timeline.js"></script>
   <script>
     // === Configure your CSV path here ===
     const CSV_URL = './timeline-data.csv'; 
@@ -70,7 +70,7 @@
         content.innerHTML = '<p><strong>Error:</strong> Could not load CSV. Check URL and CORS.</p>';
         panel.classList.remove('hidden');
       }
-    }();
+    };
   </script>
 </body>
 </html>
