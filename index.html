@@ -55,6 +55,20 @@
   </div>
 
   <!-- External JS -->
-  <script src="./timeline.js"></script>
+  <script src="./timeline.js"</script>
+<script>
+(async function start() {
+  try {
+    const rows = await loadCsv('./timeline-data.csv'); // relative path
+    events = rows;
+    buildLegend();
+    initScaleAndPan();
+    draw();
+  } catch (err) {
+    console.error('Failed to load CSV:', err);
+  }
+})();
+</script>
+
 </body>
 </html>
