@@ -271,20 +271,30 @@ function parseCSV(text) {
 
 // ===== Legend =====
 
+
 function getGroupIcon(group) {
-  // Return a short symbol or emoji for the group
   if (!group) return '•';
   const map = {
-    Persons: '👤',
-    Events: '⭐',
-    Covenants: '📜',
-    Judges: '⚖️',
-    Kings: '👑',
-    Prophets: '📖',
-    Bible: '📚'
+    'Bible writing': '📚',
+    'Bible copy/translation': '📜',
+    'Events': '⭐',
+    'Persons': '👤',
+    'Covenants': '📜',
+    'Judges': '⚖️',
+    'Kings of Israel': '👑',
+    'Kings of Judah': '👑',
+    'Prophets': '📖',
+    'World powers': '🌍',
+    'Jesus': '👑',
+    'Time periods': '⏳',
+    'Modern day history of JW': '🕊️',
+    'King of the North': '⬆️',
+    'King of the South': '⬇️',
+    'Pauls journeys': '🛤️',
   };
   return map[group] || '•';
 }
+
 
 const legendEl = document.getElementById('legend');
 const groupChips = new Map();
@@ -310,10 +320,9 @@ function addAdminChip(label, onClick, color) {
 }
 
 function buildLegend() {
-  const groups = [...new Set(events.map(e => e['Group']).filter(Boolean))].sort();
-
   legendEl.innerHTML = '';
   groupChips.clear();
+  activeGroups.clear();
 
   // Admin chips
   addAdminChip('All', () => {
@@ -331,6 +340,7 @@ function buildLegend() {
   }, '#c33');
 
   // Group chips
+  const groups = [...new Set(events.map(e => e['Group']).filter(Boolean))].sort();
   groups.forEach(g => {
     const chip = document.createElement('div');
     chip.className = 'chip';
@@ -347,10 +357,7 @@ function buildLegend() {
     const label = document.createElement('span');
     label.textContent = g;
 
-    chip.appendChild(sw);
-    chip.appendChild(icon);
-    chip.appendChild(label);
-
+    chip.append(sw, icon, label);
     chip.addEventListener('click', () => {
       filterMode = 'custom';
       if (activeGroups.has(g)) {
@@ -368,7 +375,6 @@ function buildLegend() {
     activeGroups.add(g);
   });
 }
-
 
 
 // Search filter
