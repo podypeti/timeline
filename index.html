@@ -52,7 +52,7 @@
   <script src='./timeline.js'></script>
   <script>
     // === Configure your CSV path here ===
-    const CSV_URL = './timeline-data.csv'; 
+const CSV_URL = new URL('timeline-data.csv', window.location.href).toString();
     // If hosted on GitHub raw:
     // const CSV_URL = 'https://raw.githubusercontent.com/<user>/<repo>/<branch>/timeline/data/events.csv';
 
