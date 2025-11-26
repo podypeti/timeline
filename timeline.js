@@ -271,6 +271,21 @@ function parseCSV(text) {
 
 // ===== Legend =====
 
+function getGroupIcon(group) {
+  // Return a short symbol or emoji for the group
+  if (!group) return '•';
+  const map = {
+    Persons: '👤',
+    Events: '⭐',
+    Covenants: '📜',
+    Judges: '⚖️',
+    Kings: '👑',
+    Prophets: '📖',
+    Bible: '📚'
+  };
+  return map[group] || '•';
+}
+
 const legendEl = document.getElementById('legend');
 const groupChips = new Map();
 let activeGroups = new Set();
