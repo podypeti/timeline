@@ -4,7 +4,67 @@
 html, body { height:100%; }
 body { margin: 0; background: var(--bg); font-family: Arial, sans-serif; color: var(--ink); }
 
-#timelineContainer { width: 100%; overflow: hidden; position: relative; }
+
+#timelineContainer {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Overlay toolbar */
+.timelineToolbar {
+  position: absolute;            /* sits on top of canvas */
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.92);
+  border-bottom: 1px solid #0001;
+  box-shadow: 0 2px 8px var(--shadow);
+  z-index: 5;                    /* above canvas, below details panel (z=20) */
+}
+
+/* Push canvas down so the toolbar doesn't overlap its top */
+#timelineCanvas {
+  width: 100%;
+  height: 560px;
+  display: block;
+  margin-top: 64px;              /* adjust if your toolbar height changes */
+}
+
+/* Right side: zoom buttons group */
+.zoomGroup button.ghost {
+  padding: 6px 12px;
+  font-size: .9rem;
+  border: 1px solid #0002;
+  background: #fff;
+  color: #111;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px var(--shadow);
+}
+.zoomGroup button.ghost:hover {
+  background: #f3f3f3;
+}
+
+/* Fills the middle space between legend and zoom buttons */
+.toolbarSpacer {
+  flex: 1;
+}
+
+/* Keep using your existing .legend-panel/.legend-content styles */
+.legend-panel { /* already defined in your CSS */ }
+.legend-content { /* already defined; optionally constrain height */ }
+
+/* Optional: prevent a tall legend from making the toolbar too big */
+.legend-content {
+  max-height: 180px;             /* scroll if too many categories */
+  overflow-y: auto;
+}
+
 #timelineCanvas { width: 100%; height: 560px; display: block; }
 
 .legendControls { max-width: 1100px; margin: 4px auto 2px; padding: 0 10px; }
