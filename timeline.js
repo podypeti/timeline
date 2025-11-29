@@ -341,11 +341,20 @@ function getGroupIcon(group) {
 }
 
 function buildLegend() {
+  // Collect distinct groups from CSV
+  const groups = [...new Set(
+    events
+      .map(e => (e['Group'] ?? '').trim())
+      .filter(Boolean)
+  )].sort();
+
+  // Reset legend state
   legendEl.innerHTML = '';
   groupChips.clear();
-  activeGroups.clear();
+  filterMode = 'all';
+  activeGroups = new Set(groups);
 
-  // Admin chips
+  // Admin chips (added ONCE here)
   addAdminChip('All', () => {
     activeGroups = new Set(groups);
     filterMode = 'all';
@@ -360,8 +369,7 @@ function buildLegend() {
     draw();
   }, '#c33');
 
-  // Group chips
-  const groups = [...new Set(events.map(e => e['Group']).filter(Boolean))].sort();
+  // Group chips from data
   groups.forEach(g => {
     const chip = document.createElement('div');
     chip.className = 'chip';
@@ -379,6 +387,7 @@ function buildLegend() {
     label.textContent = g;
 
     chip.append(sw, icon, label);
+
     chip.addEventListener('click', () => {
       filterMode = 'custom';
       if (activeGroups.has(g)) {
@@ -393,10 +402,20 @@ function buildLegend() {
 
     legendEl.appendChild(chip);
     groupChips.set(g, chip);
-    activeGroups.add(g);
   });
-}
 
+  // Wire search once, safely (no crash if element missing)
+  const search = document.getElementById('legendSearch');
+  if (search && !search._wired) {
+    search.addEventListener('input', e => {
+      const term = e.target.value.toLowerCase();
+      groupChips.forEach((chip, group) => {
+        chip.style.display = group.toLowerCase().includes(term) ? 'inline-flex' : 'none';
+      });
+    });
+    search._wired = true;
+  }
+}
 
 // Search filter
 document.getElementById('legendSearch').addEventListener('input', e => {
@@ -404,19 +423,6 @@ document.getElementById('legendSearch').addEventListener('input', e => {
   groupChips.forEach((chip, group) => {
     chip.style.display = group.toLowerCase().includes(term) ? 'inline-flex' : 'none';
   });
-});
-
-// Admin chips
-document.querySelector('[data-admin="all"]').addEventListener('click', () => {
-  activeGroups = new Set(groups);
-  filterMode = 'all';
-  groupChips.forEach(chip => chip.classList.remove('inactive'));
-});
-
-document.querySelector('[data-admin="none"]').addEventListener('click', () => {
-  activeGroups.clear();
-  filterMode = 'none';
-  groupChips.forEach(chip => chip.classList.add('inactive'));
 });
 
 
