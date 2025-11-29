@@ -9,27 +9,31 @@
 <body>
 
   <!-- Timeline Canvas -->
-  <div id="timelineContainer">
-    <canvas id="timelineCanvas" width="1200" height="560" aria-label="Timeline"></canvas>
-  </div>
 
-  <!-- Legend / Filters -->
-  <div class="legendControls">
-    <div class="inner">
-      <details class="legend-panel" open>
-        <summary>Categories</summary>
-        <div class="legend-content">
-          <input id="legendSearch" type="search" placeholder="Search categories…" />
-          <div id="legend"></div>
-        </div>
-      </details>
-      <div class="spacer"></div>
-      <button id="zoomOut" class="ghost">−</button>
-      <button id="resetZoom" class="ghost">Reset</button>
-      <button id="zoomIn" class="ghost">+</button>
+<div id="timelineContainer">
+  <!-- Top toolbar -->
+  <div class="timelineToolbar">
+    <details class="legend-panel" open>
+      <summary>Categories</summary>
+      <div class="legend-content">
+        <input id="legendSearch" type="search" placeholder="Search categories…" />
+        <!-- All/None + groups are created dynamically in JS; do not hardcode them -->
+        <div id="legend"></div>
+      </div>
+    </details>
+
+    <div class="toolbarSpacer"></div>
+
+    <div class="zoomGroup">
+      <button id="zoomOut" class="ghost" title="Zoom out">−</button>
+      <button id="resetZoom" class="ghost" title="Reset zoom">Reset</button>
+      <button id="zoomIn"  class="ghost" title="Zoom in">+</button>
     </div>
   </div>
 
+  <!-- Canvas -->
+  <canvas id="timelineCanvas" width="1200" height="560" aria-label="Timeline"></canvas>
+</div>
   <!-- Details Panel -->
   <aside id="detailsPanel" class="details hidden" role="dialog" aria-modal="true">
     <button id="detailsClose" class="close" aria-label="Close">×</button>
