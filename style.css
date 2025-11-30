@@ -212,14 +212,14 @@ body { margin: 0; background: var(--bg); font-family: Arial, sans-serif; color: 
   }
 }
 
-/* Legend shows one category per line */
+/* One-column list inside the drop-down */
 .legend-content #legend {
   display: flex;
-  flex-direction: column; /* vertical stack */
+  flex-direction: column;   /* stack vertically */
   gap: 6px;
 }
 
-/* Make each chip span the full panel width */
+/* Each category chip spans full width */
 .legend-content .chip {
   display: flex;
   align-items: center;
@@ -229,20 +229,6 @@ body { margin: 0; background: var(--bg); font-family: Arial, sans-serif; color: 
   border-radius: 16px;
 }
 
-/* Keep the swatch + icon + label spaced nicely */
+/* Tidy spacing for parts of a chip */
 .chip .swatch { margin-right: 8px; }
 .chip .chip-icon { margin-right: 8px; }
-
-/* Keep toolbar neat: summary should not hog width */
-.legend-panel {
-  max-width: 360px; /* adjust to taste */
-}
-
-.legend-content {
-  max-height: 260px;
-  overflow-y: auto;
-}
-
-.chip-icon {
-  margin-right: 6px;
-  font-size: 14px;
