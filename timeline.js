@@ -766,40 +766,31 @@ function zoomTo(newScale, anchorX = canvas.clientWidth / 2) {
   draw();
 }
 
+
 function resetAll() {
-  // 1) Clear the event search box and term
+  // Clear event search
   const es = document.getElementById('eventSearch');
-  if (es) {
-    es.value = '';
-  }
+  if (es) es.value = '';
   eventSearchTerm = '';
 
-  // 2) Restore ALL categories
-  const groups = [...new Set(
-    events.map(e => (e['Group'] ?? '').trim()).filter(Boolean)
-  )];
+  // Restore ALL categories
+  const groups = [...new Set(events.map(e => (e['Group'] ?? '').trim()).filter(Boolean))];
   activeGroups = new Set(groups);
   filterMode = 'all';
-
-  // Update chip UI back to active
   groupChips.forEach(chip => chip.classList.remove('inactive'));
 
-  // 3) Clear the legend search (optional but helpful)
+  // Clear legend search and show all chips
   const ls = document.getElementById('legendSearch');
   if (ls) {
     ls.value = '';
-    // Re-show all chips
-    groupChips.forEach((chip, group) => {
-      chip.style.display = 'inline-flex';
-    });
+    groupChips.forEach(chip => { chip.style.display = 'inline-flex'; });
   }
 
-  // 4) Reset scale and center
+  // Reset scale/center, then redraw
   initScaleAndPan();
-
-  // 5) Redraw
   draw();
 }
+
 
 function zoomIn(anchorX){ zoomTo(scale * 1.3, anchorX); }
 function zoomOut(anchorX){ zoomTo(scale / 1.3, anchorX); }
