@@ -132,20 +132,26 @@ function hashColor(str) {
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
   return `hsl(${h % 360},65%,45%)`;
 }
+
 function getGroupColor(group) {
-  if (!group) return '#0077ff';
-  if (!groupColors.has(group)) groupColors.set(group, hashColor(group));
-  return groupColors.get(group);
+  const g = (group ?? '').trim();
+  if (!g) return '#0077ff';
+  if (!groupColors.has(g)) groupColors.set(g, hashColor(g));
+  return groupColors.get(g);
 }
+
 
 function xForYear(yearFloat) { return (yearFloat - MIN_YEAR) * scale + panX; }
 function yearForX(x) { return MIN_YEAR + (x - panX) / scale; }
 
+
 function isGroupVisible(group) {
+  const g = (group ?? '').trim();           // normalize
   if (filterMode === 'all') return true;
   if (filterMode === 'none') return false;
-  return activeGroups.has(group);
+  return activeGroups.has(g);
 }
+
 
 // Slider label
 function setPanValueLabel(y) {
@@ -473,6 +479,10 @@ function updateMatchCount() {
   if (el) el.textContent = `(${visibleEventsCount()} match${visibleEventsCount() === 1 ? '' : 'es'})`;
 }
 
+console.debug('[timeline] visible events:',
+  events.filter(ev => isGroupVisible((ev['Group'] ?? '').trim())
+                     && matchesEventSearch(ev, eventSearchTerm)).length
+);
 // Search filter
 document.getElementById('legendSearch').addEventListener('input', e => {
   const term = e.target.value.toLowerCase();
@@ -842,7 +852,7 @@ function draw() {
   const visiblePoints = [];
  
 events.forEach(ev => {
-  const group = ev['Group'] ?? '';
+  const group = (ev['Group'] ?? '').trim();
   if (!isGroupVisible(group)) return;
 
   // NEW: event-level search filter
