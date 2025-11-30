@@ -232,3 +232,21 @@ body { margin: 0; background: var(--bg); font-family: Arial, sans-serif; color: 
 /* Tidy spacing for parts of a chip */
 .chip .swatch { margin-right: 8px; }
 .chip .chip-icon { margin-right: 8px; }
+
+/* Floating Reset button in top-right */
+.resetFloating {
+  position: fixed;
+  top: 10px;
+  right: 12px;
+  z-index: 30;                 /* above toolbar/details */
+  padding: 6px 12px;
+  font-size: .9rem;
+  border: 1px solid #0002;
+  border-radius: 8px;
+  background: #fff;
+  color: #111;
+  box-shadow: 0 2px 8px var(--shadow);
+  cursor: pointer;
+}
+.resetFloating:hover { background: #f3f3f3; }
+
