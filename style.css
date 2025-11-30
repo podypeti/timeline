@@ -195,6 +195,28 @@ body { margin: 0; background: var(--bg); font-family: Arial, sans-serif; color: 
   overflow-y: auto;
 }
 
+/* Toolbar search field (events) */
+.toolbarSearch {
+  width: clamp(220px, 28vw, 360px);
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background: #fff;
+  font-size: 14px;
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+@media (max-width: 700px) {
+  .toolbarSearch {
+    width: min(54vw, 280px);
+  }
+}
+
+/* Keep toolbar neat: summary should not hog width */
+.legend-panel {
+  max-width: 360px; /* adjust to taste */
+}
+
 .chip-icon {
   margin-right: 6px;
   font-size: 14px;
