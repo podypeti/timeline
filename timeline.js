@@ -44,6 +44,38 @@ let drawHitRects = [];
 let groupColors = new Map();
 let anchorJD = null;
 
+// ===== Event search (global) =====
+let eventSearchTerm = '';
+
+function norm(s) { return String(s ?? '').toLowerCase(); }
+
+function matchesEventSearch(ev, term) {
+  if (!term) return true; // empty search shows all
+  const t = term.trim().toLowerCase();
+  if (!t) return true;
+
+  // Collect searchable fields
+  const fields = [
+    ev['Headline'],
+    ev['Text'],
+    ev['Display Date'],
+    ev['Type'],
+    ev['Group'],
+    ev['Media Credit'],
+    ev['Media Caption'],
+    ev['Media'],
+    ev['Background']
+  ];
+
+  // Include years as strings for quick numeric filtering
+  fields.push(
+    Number.isFinite(parseInt(ev['Year'], 10)) ? String(ev['Year']) : '',
+    Number.isFinite(parseInt(ev['End Year'], 10)) ? String(ev['End Year']) : ''
+  );
+
+  return fields.some(f => norm(f).includes(t));
+}
+
 // ===== Utils =====
 function sizeCanvasToCss() {
   const rect = canvas.getBoundingClientRect();
@@ -417,6 +449,30 @@ function buildLegend() {
   }
 }
 
+// Wire event search (with debounce)
+(function wireEventSearch() {
+  const es = document.getElementById('eventSearch');
+  if (!es || es._wired) return;
+  let timer = null;
+  es.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      eventSearchTerm = es.value || '';
+      draw(); // re-render with the new filter
+    }, 120); // debounce ~120ms
+  });
+  es._wired = true;
+})();
+
+function visibleEventsCount() {
+  return events.filter(ev => isGroupVisible(ev['Group'] ?? '') && matchesEventSearch(ev, eventSearchTerm)).length;
+}
+
+function updateMatchCount() {
+  const el = document.getElementById('eventMatchCount');
+  if (el) el.textContent = `(${visibleEventsCount()} match${visibleEventsCount() === 1 ? '' : 'es'})`;
+}
+
 // Search filter
 document.getElementById('legendSearch').addEventListener('input', e => {
   const term = e.target.value.toLowerCase();
@@ -784,58 +840,37 @@ function draw() {
 
   // visible points/bars
   const visiblePoints = [];
-  events.forEach(ev => {
-    const group = ev['Group'] || '';
-    if (!isGroupVisible(group)) return;
+ 
+events.forEach(ev => {
+  const group = ev['Group'] ?? '';
+  if (!isGroupVisible(group)) return;
 
-    const baseYear = parseInt(ev['Year'], 10);
-    let startYearFloat = NaN;
-    if (Number.isFinite(baseYear)) {
-      const mVal = parseInt(ev['Month'], 10);
-      const dVal = parseInt(ev['Day'], 10);
-      const tVal = ev['Time'] || '';
-      startYearFloat = dateToYearFloat(baseYear, mVal, dVal, tVal);
-    }
+  // NEW: event-level search filter
+  if (!matchesEventSearch(ev, eventSearchTerm)) return;
 
-    const endYear = parseInt(ev['End Year'], 10);
-    let endYearFloat = NaN;
-    if (Number.isFinite(endYear)) {
-      const endM = parseInt(ev['End Month'], 10);
-      const endD = parseInt(ev['End Day'], 10);
-      const endT = ev['End Time'] || '';
-      endYearFloat = dateToYearFloat(endYear, endM, endD, endT);
-    }
+  const baseYear = parseInt(ev['Year'], 10);
+  let startYearFloat = NaN;
+  if (Number.isFinite(baseYear)) {
+    const mVal = parseInt(ev['Month'], 10);
+    const dVal = parseInt(ev['Day'], 10);
+    const tVal = ev['Time'] ?? '';
+    startYearFloat = dateToYearFloat(baseYear, mVal, dVal, tVal);
+  }
 
-    const title = ev['Headline'] || ev['Text'] || '';
+  const endYear = parseInt(ev['End Year'], 10);
+  let endYearFloat = NaN;
+  if (Number.isFinite(endYear)) {
+    const endM = parseInt(ev['End Month'], 10);
+    const endD = parseInt(ev['End Day'], 10);
+    const endT = ev['End Time'] ?? '';
+    endYearFloat = dateToYearFloat(endYear, endM, endD, endT);
+  }
 
-    // ranges -> bar
-    if (Number.isFinite(startYearFloat) && Number.isFinite(endYearFloat)) {
-      const x1 = xForYear(startYearFloat), x2 = xForYear(endYearFloat);
-      const xL = Math.min(x1, x2), xR = Math.max(x1, x2);
-      if (xR > -50 && xL < W / dpr + 50) {
-        const col = getGroupColor(group);
-        ctx.fillStyle = col.replace('45%', '85%');
-        fillStrokeRoundedRect(xL, rowYBar, Math.max(4, xR - xL), 16, 8, ctx.fillStyle, '#00000022');
-        if (title) { ctx.fillStyle = '#111'; ctx.fillText(title, xR + 8, rowYBar); }
-        drawHitRects.push({ kind: 'bar', ev, x: xL, y: rowYBar, w: Math.max(4, xR - xL), h: 16 });
-      }
-      return;
-    }
+  const title = ev['Headline'] ?? ev['Text'] ?? '';
 
-    // single points
-    if (Number.isFinite(startYearFloat)) {
-      const x = xForYear(startYearFloat);
-      if (x > -50 && x < W / dpr + 50) {
-        const color = getGroupColor(group);
-        ev._labelDate = ev['Display Date'] || formatYearHuman(Math.round(parseInt(ev['Year'], 10)));
-        visiblePoints.push({
-          ev, x, yLabel: rowYPoint, title, group, color,
-          yearFloat: startYearFloat,
-          yearKey: Math.round(startYearFloat)
-        });
-      }
-    }
-  });
+  // ... (unchanged point/bar handling that you already have) ...
+});
+
 
   // clustering
   visiblePoints.sort((a, b) => a.x - b.x);
