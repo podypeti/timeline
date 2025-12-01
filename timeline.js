@@ -627,6 +627,9 @@ ctx.moveTo(W / dpr / 2, 0);
 ctx.lineTo(W / dpr / 2, H / dpr);
 ctx.stroke();
 
+// Always compute centerYear locally (no globals)
+const centerYear = yearForX(canvas.clientWidth / 2);
+
   // rows Y
   const rowYPoint = 110;
   const rowYBar = 180;
