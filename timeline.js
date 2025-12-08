@@ -217,11 +217,15 @@ function fillStrokeRoundedRect(x, y, w, h, r, fillStyle, strokeStyle) {
 // ===== CSV =====
 
 // Existing loader
+
 async function loadCsv(url) {
   const res = await fetch(url);
   const text = await res.text();
-  return parseCSV(text);
+  const rows = parseCSV(text);
+  console.log('[timeline] parseCSV produced', rows.length, 'rows');
+  return rows;
 }
+
 
 // Alias for backward compatibility with older index.html
 const timelineLoadCsv = loadCsv;
