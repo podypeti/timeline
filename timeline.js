@@ -215,11 +215,17 @@ function fillStrokeRoundedRect(x, y, w, h, r, fillStyle, strokeStyle) {
 }
 
 // ===== CSV =====
+
+// Existing loader
 async function loadCsv(url) {
   const res = await fetch(url);
   const text = await res.text();
   return parseCSV(text);
 }
+
+// Alias for backward compatibility with older index.html
+const timelineLoadCsv = loadCsv;
+
 function parseCSV(text) {
   const rows = [];
   let header = null;
@@ -748,7 +754,13 @@ const centerYear = yearForX(canvas.clientWidth / 2);
 }
 
 // ===== Init =====
-// function initScaleAndPan() {sizeCanvasToCss();  scale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, canvas.clientWidth / (MAX_YEAR - MIN_YEAR)));  panX = (canvas.clientWidth / 2) - ((INITIAL_CENTER_YEAR - MIN_YEAR) * scale);  panSlider.min = String(MIN_YEAR);  panSlider.max = String(MAX_YEAR);  panSlider.step = "1";  panSlider.value = String(INITIAL_CENTER_YEAR);  setPanValueLabel(INITIAL_CENTER_YEAR);}
+
+function initScaleAndPan() {
+  sizeCanvasToCss();
+  const baseScale = canvas.clientWidth / (MAX_YEAR - MIN_YEAR);
+  scale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, baseScale));
+  panX  = (canvas.clientWidth / 2) - ((INITIAL_CENTER_YEAR - MIN_YEAR) * scale);
+}
 
 // ===== Zoom / Pan =====
 function zoomTo(newScale, anchorX = canvas.clientWidth / 2) {
