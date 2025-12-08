@@ -50,33 +50,20 @@
 
   <!-- Scripts -->
  <script src="timeline.js?v=6pt>
-  <script>
-    // Start once DOM is ready: load CSV, then build UI and draw
-    document.addEventListener('DOMContentLoaded', async () => {
-      try {
-        // Adjust path if your CSV lives elsewhere
-        const rows = await loadCsv('timeline-data.csv');
-        window.events = rows;
-
-        // Build legend and wire inputs
-        buildLegend();
-
-        // Initialize the scale/pan (this must exist in timeline.js)
-        initScaleAndPan();
-
-        // First render
-        draw();
-      } catch (err) {
-        console.error('[timeline] failed to load CSV', err);
-        // Optional: inform the user in the details panel
-        const detailsContent = document.getElementById('detailsContent');
-        const detailsPanel = document.getElementById('detailsPanel');
-        if (detailsContent && detailsPanel) {
-          detailsContent.innerHTML = '<p><strong>Error:</strong> Could not load CSV. Check file path and CORS.</p>';
-          detailsPanel.classList.remove('hidden');
-        }
-      }
-    });
-  </script>
+   
+<!-- Then run the bootstrap AFTER DOM is ready -->
+<script defer>
+  document.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const rows = await loadCsv('timeline-data.csv'); // must be in same folder or adjust path
+      window.events = rows;
+      buildLegend();
+      initScaleAndPan();
+      draw();
+    } catch (err) {
+      console.error('[timeline] failed to load CSV', err);
+    }
+  });
+</script>
 </body>
 </html>
