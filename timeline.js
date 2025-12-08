@@ -865,8 +865,5 @@ function escapeHtml(s) {
 function escapeAttr(s) { return escapeHtml(s); }
 const mediaHtml = ev['Media']
 
-window.loadCsv = loadCsv;
-window.timelineLoadCsv = loadCsv;
-
 // ===== Responsive =====
 window.addEventListener('resize', () => { draw(); });
