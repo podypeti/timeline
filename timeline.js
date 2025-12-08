@@ -226,6 +226,17 @@ async function loadCsv(url) {
   return rows;
 }
 
+document.addEventListener('DOMContentLoaded', async () => {
+  const rows = await loadCsv('timeline-data.csv');
+  console.log('[timeline] rows loaded:', rows.length, rows[0]);
+  // …
+});
+
+
+// ✅ Expose to global (fixes "loadCsv is not defined" for inline scripts)
+window.loadCsv = loadCsv;
+// Optional legacy alias if you ever called a different name earlier
+window.timelineLoadCsv = loadCsv;
 
 // Alias for backward compatibility with older index.html
 const timelineLoadCsv = loadCsv;
@@ -853,5 +864,9 @@ function escapeHtml(s) {
 }
 function escapeAttr(s) { return escapeHtml(s); }
 const mediaHtml = ev['Media']
+
+window.loadCsv = loadCsv;
+window.timelineLoadCsv = loadCsv;
+
 // ===== Responsive =====
 window.addEventListener('resize', () => { draw(); });
