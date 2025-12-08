@@ -1,6 +1,6 @@
 
 <!doctype html>
-<html lang="en">
+<html lang=
 <head>
   <meta charset="utf-8" />
   <title>History Timeline</title>
@@ -26,7 +26,8 @@
       </details>
 
       <!-- Search across events -->
-      <input id="eventSearch" class="toolbarSearch" type="text" placeholder="Search events… (title, text, date, group)" />
+      <input id="eventSearch" class="toolbarSearch" type="text"
+             placeholder="Search events… (title, text, date, group)" />
 
       <div class="toolbarSpacer"></div>
 
@@ -48,22 +49,29 @@
     <div id="detailsContent"></div>
   </div>
 
-  <!-- Scripts -->
- <script src="timeline.js?v=6pt>
-   
-<!-- Then run the bootstrap AFTER DOM is ready -->
-<script defer>
-  document.addEventListener('DOMContentLoaded', async () => {
-    try {
-      const rows = await loadCsv('timeline-data.csv'); // must be in same folder or adjust path
-      window.events = rows;
-      buildLegend();
-      initScaleAndPan();
-      draw();
-    } catch (err) {
-      console.error('[timeline] failed to load CSV', err);
-    }
-  });
-</script>
+  <!-- Load timeline script first -->
+  timeline.js?v=6-patch2</script>
+
+  <!-- Then run the bootstrap AFTER DOM is ready -->
+  <script defer>
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const rows = await loadCsv('timeline-data.csv'); // adjust path if needed
+        window.events = rows;
+        buildLegend();
+        initScaleAndPan();
+        draw();
+      } catch (err) {
+        console.error('[timeline] failed to load CSV', err);
+        // Optional: show a small inline notice
+        const detailsContent = document.getElementById('detailsContent');
+        const detailsPanel = document.getElementById('detailsPanel');
+        if (detailsContent && detailsPanel) {
+          detailsContent.innerHTML = '<p><strong>Error:</strong> Could not load CSV. Check file path and CORS.</p>';
+          detailsPanel.classList.remove('hidden');
+        }
+      }
+    });
+  </script>
 </body>
 </html>
