@@ -863,7 +863,6 @@ function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => map[c]);
 }
 function escapeAttr(s) { return escapeHtml(s); }
-const mediaHtml = ev['Media']
 
 // ===== Responsive =====
 window.addEventListener('resize', () => { draw(); });
