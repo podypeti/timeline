@@ -252,19 +252,7 @@ body { margin: 0; background: var(--bg); font-family: Arial, sans-serif; color: 
 .resetFloating:hover { background: #f3f3f3; }
 
 /* Toolbar sits under the fixed Reset: give it right padding so nothing is under Reset */
-.timelineToolbar {
-  position: absolute;          /* your current overlay on canvas */
-  top: 0; left: 0; right: 0;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 8px 10px;
-  padding-right: 120px;        /* <-- room for the Reset button above */
-  background: rgba(255,255,255,0.92);
-  border-bottom: 1px solid #0001;
-  box-shadow: 0 2px 8px var(--shadow);
-  z-index: 5;
-}
+
 
 /* On small screens, reserve a bit more room so Reset never overlaps zooms */
 @media (max-width: 480px) {
