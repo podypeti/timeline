@@ -214,32 +214,6 @@ function fillStrokeRoundedRect(x, y, w, h, r, fillStyle, strokeStyle) {
   }
 }
 
-// ===== CSV =====
-
-// Existing loader
-
-async function loadCsv(url) {
-  const res = await fetch(url);
-  const text = await res.text();
-  const rows = parseCSV(text);
-  console.log('[timeline] parseCSV produced', rows.length, 'rows');
-  return rows;
-}
-
-document.addEventListener('DOMContentLoaded', async () => {
-  const rows = await loadCsv('timeline-data.csv');
-  console.log('[timeline] rows loaded:', rows.length, rows[0]);
-  // …
-});
-
-
-// ✅ Expose to global (fixes "loadCsv is not defined" for inline scripts)
-window.loadCsv = loadCsv;
-// Optional legacy alias if you ever called a different name earlier
-window.timelineLoadCsv = loadCsv;
-
-// Alias for backward compatibility with older index.html
-const timelineLoadCsv = loadCsv;
 
 function parseCSV(text) {
   const rows = [];
