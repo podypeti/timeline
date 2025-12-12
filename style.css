@@ -259,4 +259,20 @@ body { margin: 0; background: var(--bg); font-family: Arial, sans-serif; color: 
   .timelineToolbar { padding-right: 140px; }
 }
 
+/* ===== Hover Tooltip ===== */
+.hoverTooltip {
+  position: fixed;
+  z-index: 40;
+  pointer-events: none;
+  background: #111;
+  color: #fff;
+  font: 12px/1.4 sans-serif;
+  padding: 6px 8px;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.22);
+  transform: translate(-50%, -120%); /* sit above cursor */
+  opacity:   opacity: 0;
+  transition: opacity .12s ease;
+}
+
 
