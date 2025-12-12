@@ -568,6 +568,15 @@ function layoutSingleLabels(singleClusters, options = {}) {
   });
 }
 
+async function loadCsv(url) {
+  const res = await fetch(url);
+  console.log('[diag] CSV fetch:', res.status, res.statusText, 'url:', url);
+  const text = await res.text();
+  const rows = parseCSV(text);
+  console.log('[diag] parsed rows:', rows.length);
+  return rows;
+}
+
 // ===== Main draw =====
 function draw() {
   sizeCanvasToCss();
@@ -750,7 +759,7 @@ const centerYear = yearForX(canvas.clientWidth / 2);
   const singles = clusters.filter(c => c.events.length === 1);
   layoutSingleLabels(singles, { gap: gapForScale(), rows: rowsForScale(), y: 118, dy: 18, maxW: maxLabelWidthForScale(), leader: true });
 }
-
+window.loadCsv = loadCsv; // exposes the function globally
 // ===== Init =====
 
 function initScaleAndPan() {
