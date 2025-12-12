@@ -900,4 +900,4 @@ function escapeHtml(s) {
 function escapeAttr(s) { return escapeHtml(s); }
 
 // ===== Responsive =====
-window.addEventListener('resize', () => { draw(); });
+window.addEventListener('resize', () => { draw(); })
