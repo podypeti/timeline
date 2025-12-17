@@ -724,7 +724,7 @@ if (group === 'Time periods') {
         visiblePoints.push({ ev, x, yLabel: rowYPoint, title, group, color, yearFloat: startYearFloat, yearKey: Math.round(startYearFloat) });
       }
     }
-  });
+  );
 
   // clustering
   visiblePoints.sort((a, b) => a.x - b.x);
