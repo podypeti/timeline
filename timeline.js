@@ -723,8 +723,7 @@ if (group === 'Time periods') {
         ev._labelDate = ev['Display Date'] || formatYearHuman(Math.round(parseInt(ev['Year'], 10)));
         visiblePoints.push({ ev, x, yLabel: rowYPoint, title, group, color, yearFloat: startYearFloat, yearKey: Math.round(startYearFloat) });
       }
-    }
-  );
+    };
 
   // clustering
   visiblePoints.sort((a, b) => a.x - b.x);
