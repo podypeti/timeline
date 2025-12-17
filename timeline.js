@@ -1,7 +1,7 @@
 
 // ===== Version & config =====
-console.log('[timeline] script loaded v6-patch2');
-const ASSET_VERSION = '6-patch2';
+console.log('[timeline] script loaded v6-patch3');
+const ASSET_VERSION = '6-patch3';
 const MIN_YEAR = -4050;
 const MAX_YEAR = 2100;
 const INITIAL_CENTER_YEAR = 1; // center at 1 CE
@@ -10,11 +10,6 @@ const MAX_ZOOM = 12000;
 const LABEL_ANCHOR_YEAR = -5000;
 const AVG_YEAR_DAYS = 365.2425;
 
-// ===== Band layout for "Time periods" =====
-const TP_BAND_Y = 232;       // top Y position of the band (in CSS pixels)
-const TP_BAND_H = 62;        // band height
-const TP_BAND_PAD_X = 6;     // horizontal padding before/after bars
-const TP_BAND_LABEL = 'Time periods'; // band label text
 // --- Clustering config ---
 const CLUSTER_BY = 'pixel';
 function clusterPxThreshold() {
@@ -24,6 +19,12 @@ function clusterPxThreshold() {
   if (ppy >= 60) return 14;
   return 22;
 }
+
+// ===== Band layout for "Time periods" =====
+const TP_BAND_Y = 232;                 // top Y position of the band (CSS px)
+const TP_BAND_H = 62;                  // band height
+const TP_BAND_PAD_X = 6;               // horizontal padding inside band
+const TP_BAND_LABEL = 'Time periods';  // band label text
 
 // ===== DOM =====
 const canvas = document.getElementById('timelineCanvas');
@@ -143,6 +144,7 @@ function isGroupVisible(group) {
   if (filterMode === 'none') return false;
   return activeGroups.has(g);
 }
+
 // Slider label
 function setPanValueLabel(y) {
   const yr = Math.round(y);
@@ -159,13 +161,13 @@ function gregorianToJDN(y, m, d) {
   const y2 = y + 4800 - a;
   const m2 = m + 12 * a - 3;
   return d + Math.floor((153 * m2 + 2) / 5) + 365 * y2 + Math.floor(y2 / 4)
-    - Math.floor(y2 / 100) + Math.floor(y2 / 400) - 32045;
+       - Math.floor(y2 / 100) + Math.floor(y2 / 400) - 32045;
 }
 function parseTimeFraction(s) {
   if (!s) return 0;
   const m = String(s).match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
   if (!m) return 0;
-  const h = Math.min(23, Math.max(0, parseInt(m[1], 10)));
+  const h  = Math.min(23, Math.max(0, parseInt(m[1], 10)));
   const mi = Math.min(59, Math.max(0, parseInt(m[2], 10)));
   const se = m[3] ? Math.min(59, Math.max(0, parseInt(m[3], 10))) : 0;
   return h / 24 + mi / 1440 + se / 86400;
@@ -220,7 +222,6 @@ function fillStrokeRoundedRect(x, y, w, h, r, fillStyle, strokeStyle) {
     if (strokeStyle) { ctx.strokeStyle = strokeStyle; ctx.stroke(); }
   }
 }
-
 
 function parseCSV(text) {
   const rows = [];
@@ -286,21 +287,19 @@ function getGroupIcon(group) {
     'Kings of Judah': '👑',
     'Prophets': '📖',
     'World powers': '🌍',
-    'Jesus': '🤴',
+    'Jesus': '🧴', // (placeholder emoji from original map)
     'Time periods': '⏳',
-    'Modern day history of JW': '🕊️',
+    'Modern day history of JW': '🔊',
     'King of the North': '⬆️',
     'King of the South': '⬇️',
     "Paul's journeys": '🛤️',
   };
   return map[g] || '•';
 }
-
 function buildLegend() {
   const groups = [...new Set(
     events.map(e => (e['Group'] ?? '').trim()).filter(Boolean)
   )].sort();
-
   legendEl.innerHTML = '';
   groupChips.clear();
   filterMode = 'all';
@@ -368,17 +367,19 @@ function buildLegend() {
 
 // ===== Details =====
 function escapeHtml(s) {
-  return (s ?? '').replace(/[&<>\"]/g, c => ({ '&': '&', '<': '<', '>': '>', '"': '"' }[c]));
+  return (s ?? '').replace(/[&\<>\"]/g, c => ({ '&': '&', '<': '<', '>': '>', '"' : '"' }[c]));
 }
 function escapeAttr(s) { return escapeHtml(s).replace(/'/g, '&#39;'); }
 function showDetails(ev) {
   const baseYear = parseInt(ev['Year'], 10);
-  const displayDate = (ev['Display Date'] && ev['Display Date'].trim()) || (Number.isFinite(baseYear) ? formatYearHuman(baseYear) : '');
+  const displayDate = (ev['Display Date'] && ev['Display Date'].trim())
+    || (Number.isFinite(baseYear) ? formatYearHuman(baseYear) : '');
   const headline = ev['Headline'] || '';
   const text = ev['Text'] || '';
   const media = ev['Media'] || '';
   const credit = ev['Media Credit'] || '';
   const caption = ev['Media Caption'] || '';
+
   detailsContent.innerHTML = `
     <h3>${escapeHtml(headline)}</h3>
     <div class="meta">${escapeHtml(displayDate)}${ev['Type'] ? ' • ' + escapeHtml(ev['Type']) : ''}${ev['Group'] ? ' • ' + escapeHtml(ev['Group']) : ''}</div>
@@ -440,9 +441,9 @@ function formatMonthSmart(yearFloat, targetWidthPx) {
 function chooseTickScale(pxPerYear) {
   const baseUnits = [
     { majorStep: 1 / (AVG_YEAR_DAYS * 24), format: v => formatHour(v), type: 'hour' },
-    { majorStep: 1 / AVG_YEAR_DAYS, format: v => formatDay(v), type: 'day' },
-    { majorStep: 1 / 12, format: v => formatMonthYear(v), type: 'month' },
-    { majorStep: 1, format: v => formatYearHuman(Math.round(v)), type: 'year' },
+    { majorStep: 1 / AVG_YEAR_DAYS,       format: v => formatDay(v),  type: 'day' },
+    { majorStep: 1 / 12,                  format: v => formatMonthYear(v), type: 'month' },
+    { majorStep: 1,                       format: v => formatYearHuman(Math.round(v)), type: 'year' },
   ];
   const niceBases = [1, 2, 3, 5];
   const niceSteps = [];
@@ -452,6 +453,7 @@ function chooseTickScale(pxPerYear) {
   }
   const yearSteps = niceSteps.map(n => ({ majorStep: n, format: formatYearHuman, type: 'plural-year' }));
   const candidates = [...baseUnits, ...yearSteps];
+
   const MIN_GAP = 8;
   ctx.font = '14px sans-serif';
   const sampleX = [
@@ -461,11 +463,14 @@ function chooseTickScale(pxPerYear) {
     canvas.clientWidth * 0.72,
     canvas.clientWidth * 0.92,
   ];
+
   let bestMonthCandidate = null;
   let bestMonthStepPx = 0;
+
   for (const c of candidates) {
     const stepPx = c.majorStep * pxPerYear;
     if (!(stepPx > 0)) continue;
+
     const widths = [];
     for (const sx of sampleX) {
       const yr = yearForX(sx);
@@ -484,6 +489,7 @@ function chooseTickScale(pxPerYear) {
     widths.sort((a, b) => a - b);
     const medianW = widths[Math.floor(widths.length / 2)];
     const fits = stepPx >= medianW + MIN_GAP;
+
     if (c.type === 'month') {
       if (stepPx > bestMonthStepPx) {
         bestMonthStepPx = stepPx;
@@ -541,6 +547,7 @@ function layoutSingleLabels(singleClusters, options = {}) {
   const dy = options.dy ?? 18;
   const maxW = options.maxW ?? maxLabelWidthForScale();
   const showLeader = options.leader ?? true;
+
   const rows = Array.from({ length: rowsN }, () => ({ right: -Infinity, items: [] }));
   singleClusters.forEach(c => {
     const ev = c.events[0];
@@ -560,6 +567,7 @@ function layoutSingleLabels(singleClusters, options = {}) {
     last.items.push({ x: c.centerX, w: labelW, text, dotY: c.y });
     last.right = Math.max(last.right, c.centerX + labelW / 2);
   });
+
   ctx.fillStyle = '#111';
   ctx.textBaseline = 'top';
   ctx.font = '14px sans-serif';
@@ -583,19 +591,21 @@ async function loadCsv(url) {
   console.log('[diag] parsed rows:', rows.length);
   return rows;
 }
+window.loadCsv = loadCsv; // exposes the function globally
 
 // ===== Main draw =====
 function draw() {
   sizeCanvasToCss();
-  
-console.log('[diag] draw() events:',
+  console.log('[diag] draw() events:',
     Array.isArray(events) ? events.length : 'events not array');
+
   // If zero, draw a hint so we can see it on canvas:
   if (!Array.isArray(events) || events.length === 0) {
     ctx.fillStyle = '#000'; ctx.font = '14px sans-serif';
     ctx.fillText('No events loaded. Check CSV path and CORS.', 18, 28);
     return;
-}
+  }
+
   ctx.clearRect(0, 0, W, H);
   drawHitRects = [];
   ctx.fillStyle = '#ffffff';
@@ -641,26 +651,24 @@ console.log('[diag] draw() events:',
   }
   ctx.restore();
 
-// center line + center-year label
-ctx.strokeStyle = '#00000033';
-ctx.beginPath();
-ctx.moveTo(W / dpr / 2, 0);
-ctx.lineTo(W / dpr / 2, H / dpr);
-ctx.stroke();
+  // center line + center-year label
+  ctx.strokeStyle = '#00000033';
+  ctx.beginPath();
+  ctx.moveTo(W / dpr / 2, 0);
+  ctx.lineTo(W / dpr / 2, H / dpr);
+  ctx.stroke();
 
-// ✅ Declare centerYear safely
-const centerYear = yearForX(canvas.clientWidth / 2);
-
-// if (typeof setPanValueLabel === 'function' && typeof panValue !== 'undefined' && panValue) {  setPanValueLabel(centerYear);}
-
+  // ✅ Declare centerYear safely
+  const centerYear = yearForX(canvas.clientWidth / 2);
+  // if (typeof setPanValueLabel === 'function' && typeof panValue !== 'undefined' && panValue) { setPanValueLabel(centerYear);}
 
   // rows Y
   const rowYPoint = 110;
   const rowYBar = 180;
+
   const visiblePoints = [];
-  
-const timePeriodBars = []; // bars to draw in the dedicated band
-const otherRangeBars = []; // bars for any range group except "Time periods"
+  const timePeriodBars = []; // bars to draw in the dedicated band
+  const otherRangeBars = []; // bars for any range group except "Time periods"
 
   events.forEach(ev => {
     const group = (ev['Group'] ?? '').trim();
@@ -684,25 +692,27 @@ const otherRangeBars = []; // bars for any range group except "Time periods"
       endYearFloat = dateToYearFloat(endYear, endM, endD, endT);
     }
     const title = ev['Headline'] ?? ev['Text'] ?? '';
+
     // ranges -> bar
+    if (Number.isFinite(startYearFloat) && Number.isFinite(endYearFloat)) {
+      const x1 = xForYear(startYearFloat), x2 = xForYear(endYearFloat);
+      const xL = Math.min(x1, x2), xR = Math.max(x1, x2);
+      if (xR > -50 && xL < W / dpr + 50) {
+        const col = getGroupColor(group);
+        const barWidth = Math.max(4, xR - xL);
+        const bar = { ev, x: xL, w: barWidth, color: col, title };
 
-if (Number.isFinite(startYearFloat) && Number.isFinite(endYearFloat)) {
-  const x1 = xForYear(startYearFloat), x2 = xForYear(endYearFloat);
-  const xL = Math.min(x1, x2), xR = Math.max(x1, x2);
-
-  if (xR > -50 && xL < W / dpr + 50) {
-    const col = getGroupColor(group);
-    const barWidth = Math.max(4, xR - xL);
-    const bar = { ev, x: xL, w: barWidth, color: col, title, y: rowYBar };
-
-    if ((ev['Group'] ?? '').trim() === 'Time periods') {
-      // route into the dedicated band; the general row will not draw it
-      timePeriodBars.push(bar);
-    } else {
-      otherRangeBars.push(bar);
+        if (group === 'Time periods') {
+          // route into the dedicated band
+          timePeriodBars.push(bar);
+        } else {
+          // keep for the generic bar row
+          otherRangeBars.push(bar);
+        }
+      }
+      // do not process as a single point
+      return;
     }
-  }
-  }
 
     // single points
     if (Number.isFinite(startYearFloat)) {
@@ -749,57 +759,7 @@ if (Number.isFinite(startYearFloat) && Number.isFinite(endYearFloat)) {
   }
   pushCurrent();
 
-
-// ---- Dedicated "Time periods" band ----
-const showTimePeriodsBand = isGroupVisible('Time periods') && filterMode !== 'none';
-
-// Draw the band background if active
-if (showTimePeriodsBand) {
-  // soft background stripe
-  ctx.save();
-  ctx.fillStyle = '#f3f7ff';             // subtle light blue
-  ctx.strokeStyle = '#00000015';         // faint border
-  ctx.beginPath();
-  ctx.rect(0, TP_BAND_Y, W / dpr, TP_BAND_H);
-  ctx.fill();
-  ctx.stroke();
-
-  // band label on the left
-  ctx.fillStyle = '#335';
-  ctx.font = '12px sans-serif';
-  ctx.textBaseline = 'top';
-  ctx.fillText(TP_BAND_LABEL, 10, TP_BAND_Y + 6);
-  ctx.restore();
-
-  // draw only "Time periods" bars inside this band
-  timePeriodBars.forEach(bar => {
-    const bx = Math.max(TP_BAND_PAD_X, bar.x);
-    const bw = Math.max(4, bar.w - TP_BAND_PAD_X * 2);
-    const by = TP_BAND_Y + Math.floor(TP_BAND_H / 2) - 8; // vertical center of band
-
-    // lighter fill variant of the group color
-    const fillCol = bar.color.replace('45%', '85%'); // hsl(..., 65%, 85%) from getGroupColor
-    fillStrokeRoundedRect(bx, by, bw, 16, 8, fillCol, '#00000022');
-
-    if (bar.title) { ctx.fillStyle = '#111'; ctx.fillText(bar.title, bx + bw + 8, by); }
-
-    drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bx, y: by, w: bw, h: 16 });
-  });
-}
-  
-// ---- Generic range bars row (non-"Time periods") ----
-otherRangeBars.forEach(bar => {
-  const fillCol = bar.color.replace('45%', '85%');
-  fillStrokeRoundedRect(bar.x, rowYBar, bar.w, 16, 8, fillCol, '#00000022');
-  if (bar.title) { 
-    ctx.fillStyle = '#111'; ctx.fillText(bar.title, bar.x + bar.w + 8, rowYBar); 
-    }
-  drawHitRects.push({ 
-    kind: 'bar', ev: bar.ev, x: bar.x, y: rowYBar, w: bar.w, h:   drawHitRects.push({
-      kind: 'bar', ev: bar.ev, x: bar.x, y: rowYBar, w: bar.w, h: 16 
-    });
-   })}
-  // draw clusters
+  // draw clusters (points and multi-event circles)
   ctx.textBaseline = 'top';
   ctx.font = '14px sans-serif';
   clusters.forEach(cluster => {
@@ -823,17 +783,62 @@ otherRangeBars.forEach(bar => {
     }
   });
 
+  // labels for single points
   const singles = clusters.filter(c => c.events.length === 1);
   layoutSingleLabels(singles, { gap: gapForScale(), rows: rowsForScale(), y: 118, dy: 18, maxW: maxLabelWidthForScale(), leader: true });
-}
-window.loadCsv = loadCsv; // exposes the function globally
-// ===== Init =====
 
+  // ---- Dedicated "Time periods" band ----
+  const showTimePeriodsBand = isGroupVisible('Time periods') && timePeriodBars.length > 0;
+  if (showTimePeriodsBand) {
+    // band background
+    ctx.save();
+    ctx.fillStyle = '#f3f7ff';
+    ctx.strokeStyle = '#00000015';
+    ctx.beginPath();
+    ctx.rect(0, TP_BAND_Y, W / dpr, TP_BAND_H);
+    ctx.fill();
+    ctx.stroke();
+
+    // band label
+    ctx.fillStyle = '#335';
+    ctx.font = '12px sans-serif';
+    ctx.textBaseline = 'top';
+    ctx.fillText(TP_BAND_LABEL, 10, TP_BAND_Y + 6);
+    ctx.restore();
+
+    // draw "Time periods" bars in band
+    ctx.font = '14px sans-serif';
+    ctx.textBaseline = 'top';
+    timePeriodBars.forEach(bar => {
+      const bx = Math.max(TP_BAND_PAD_X, bar.x);
+      const bw = Math.max(4, bar.w - TP_BAND_PAD_X * 2);
+      const by = TP_BAND_Y + Math.floor(TP_BAND_H / 2) - 8; // centered row inside band
+
+      const fillCol = bar.color.replace('45%', '85%');
+      fillStrokeRoundedRect(bx, by, bw, 16, 8, fillCol, '#00000022');
+
+      if (bar.title) { ctx.fillStyle = '#111'; ctx.fillText(bar.title, bx + bw + 8, by); }
+      drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bx, y: by, w: bw, h: 16 });
+    });
+  }
+
+  // ---- Generic range bars row (non-"Time periods") ----
+  ctx.font = '14px sans-serif';
+  ctx.textBaseline = 'top';
+  otherRangeBars.forEach(bar => {
+    const fillCol = bar.color.replace('45%', '85%');
+    fillStrokeRoundedRect(bar.x, rowYBar, bar.w, 16, 8, fillCol, '#00000022');
+    if (bar.title) { ctx.fillStyle = '#111'; ctx.fillText(bar.title, bar.x + bar.w + 8, rowYBar); }
+    drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bar.x, y: rowYBar, w: bar.w, h: 16 });
+  });
+}
+
+// ===== Init =====
 function initScaleAndPan() {
   sizeCanvasToCss();
   const baseScale = canvas.clientWidth / (MAX_YEAR - MIN_YEAR);
   scale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, baseScale));
-  panX  = (canvas.clientWidth / 2) - ((INITIAL_CENTER_YEAR - MIN_YEAR) * scale);
+  panX = (canvas.clientWidth / 2) - ((INITIAL_CENTER_YEAR - MIN_YEAR) * scale);
 }
 
 // ===== Zoom / Pan =====
@@ -844,9 +849,6 @@ function zoomTo(newScale, anchorX = canvas.clientWidth / 2) {
   panX = anchorX - (anchorYear - MIN_YEAR) * scale;
   draw();
 }
-
-
-
 function resetAll() {
   // Clear event search
   const es = document.getElementById('eventSearch');
@@ -875,27 +877,27 @@ function resetAll() {
 
   draw();
 }
-
-
 const btnResetFloating = document.getElementById('resetZoomFloating');
 if (btnResetFloating) btnResetFloating.addEventListener('click', resetAll);
 
-
 function zoomIn(anchorX){ zoomTo(scale * 1.3, anchorX); }
 function zoomOut(anchorX){ zoomTo(scale / 1.3, anchorX); }
-if (btnZoomIn) btnZoomIn.addEventListener('click', () => zoomIn(canvas.clientWidth / 2));
+if (btnZoomIn)  btnZoomIn.addEventListener('click', () => zoomIn(canvas.clientWidth / 2));
 if (btnZoomOut) btnZoomOut.addEventListener('click', () => zoomOut(canvas.clientWidth / 2));
-if (btnReset) btnReset.addEventListener('click', resetAll);
-canvas.addEventListener('wheel', (e) => {
+if (btnReset)   btnReset.addEventListener('click', resetAll);
+
+canvas.addcanvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const anchor = (e.offsetX ?? (e.clientX - canvas.getBoundingClientRect().left));
   const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
   zoomTo(scale * zoomFactor, anchor);
 }, { passive: false });
+
 canvas.addEventListener('mousedown', (e) => { isDragging = true; dragStartX = e.clientX; });
 window.addEventListener('mousemove', (e) => { if (isDragging) { panX += (e.clientX - dragStartX); dragStartX = e.clientX; draw(); } });
 window.addEventListener('mouseup', () => { isDragging = false; });
 canvas.addEventListener('mouseleave', () => { isDragging = false; });
+
 canvas.addEventListener('touchstart', (e) => { if (e.touches.length === 1) { isDragging = true; dragStartX = e.touches[0].clientX; } }, { passive: true });
 canvas.addEventListener('touchmove', (e) => { if (isDragging && e.touches.length === 1) { panX += (e.touches[0].clientX - dragStartX); dragStartX = e.touches[0].clientX; draw(); } }, { passive: true });
 canvas.addEventListener('touchend', () => { isDragging = false; });
@@ -905,7 +907,6 @@ canvas.addEventListener('mousemove', (e) => {
   const rect = canvas.getBoundingClientRect();
   const x = (e.clientX - rect.left);
   const y = (e.clientY - rect.top);
-
   // Search last rect first for topmost hit
   for (let i = drawHitRects.length - 1; i >= 0; i--) {
     const p = drawHitRects[i];
@@ -952,23 +953,20 @@ function setTooltip(text, x, y) {
   }
   hoverTooltip.textContent = text;
   hoverTooltip.style.left = `${x}px`;
-  hoverTooltip.style.top  = `${y}px`;
+  hoverTooltip.style.top = `${y}px`;
   hoverTooltip.classList.add('show');
   hoverTooltip.setAttribute('aria-hidden', 'false');
 }
 function hideTooltip() {
   setTooltip('', 0, 0);
 }
+
+// (redefined) escape helpers
 function escapeHtml(s) {
-  const map = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+  const map = { '&':'&', '<':'<', '>':'>', '"':'"', "'":'&#39;' };
   return String(s ?? '').replace(/[&<>"']/g, c => map[c]);
 }
 function escapeAttr(s) { return escapeHtml(s); }
 
 // ===== Responsive =====
-window.addEventListener('resize', () => { draw(); })
-
-const showTimePeriodsBand =
-   filterMode !== 'none'
-     && activeGroups.has('Time periods')
 
