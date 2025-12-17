@@ -886,12 +886,14 @@ if (btnZoomIn)  btnZoomIn.addEventListener('click', () => zoomIn(canvas.clientWi
 if (btnZoomOut) btnZoomOut.addEventListener('click', () => zoomOut(canvas.clientWidth / 2));
 if (btnReset)   btnReset.addEventListener('click', resetAll);
 
-canvas.addcanvas.addEventListener('wheel', (e) => {
+
+canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const anchor = (e.offsetX ?? (e.clientX - canvas.getBoundingClientRect().left));
   const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
   zoomTo(scale * zoomFactor, anchor);
 }, { passive: false });
+
 
 canvas.addEventListener('mousedown', (e) => { isDragging = true; dragStartX = e.clientX; });
 window.addEventListener('mousemove', (e) => { if (isDragging) { panX += (e.clientX - dragStartX); dragStartX = e.clientX; draw(); } });
