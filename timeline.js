@@ -775,18 +775,27 @@ function draw() {
     const title = ev['Headline'] ?? ev['Text'] ?? '';
 
     // --- Route ALL Time periods into the band (range or single-year)
-    if (group === 'Time periods') {
-      if (Number.isFinite(startYearFloat)) {
-        const xStart = xForYear(startYearFloat);
-        const xEnd = Number.isFinite(endYearFloat) ? xForYear(endYearFloat) : xStart;
-        const xL = Math.min(xStart, xEnd);
-        const xR = Math.max(xStart, xEnd);
-        if (xR > -50 && xL < W / dpr + 50) {
-          const barWidth = Math.max(4, xR - xL); // min width for single-year
-          timePeriodBars.push({ ev, x: xL, w: barWidth, color: getGroupColor(group), title });
-        }
-      }
-      return; // do not draw Time periods elsewhere
+    
+if (group === 'Time periods') {
+  if (Number.isFinite(startYearFloat)) {
+    const xStart = xForYear(startYearFloat);
+    const xEnd   = Number.isFinite(endYearFloat) ? xForYear(endYearFloat) : xStart;
+
+    // Ensure the bar is visible in the viewport (with some margin)
+    const xL = Math.min(xStart, xEnd);
+    const xR = Math.max(xStart, xEnd);
+    if (xR > -50 && xL < W / dpr + 50) {
+      timePeriodBars.push({
+        ev,
+        x: xL,                       // left edge of bar
+        w: Math.max(4, xR - xL),     // full width (or min 4px if single-year)
+        color: getGroupColor(group),
+        title
+      });
+    }
+  }
+  return; 
+// do not draw Time periods elsewhere
     }
 
     // --- Non-Time periods ranges -> generic bar row
