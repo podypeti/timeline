@@ -1,7 +1,7 @@
 
 // ===== Version & config =====
-console.log('[timeline] script loaded v6-patch4');
-const ASSET_VERSION = '6-patch4';
+console.log('[timeline] script loaded v6-patch5');
+const ASSET_VERSION = '6-patch5';
 
 const MIN_YEAR = -4050;
 const MAX_YEAR = 2100;
@@ -368,7 +368,7 @@ function buildLegend() {
 
 // ===== Details =====
 function escapeHtml(s) {
-  const map = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+  const map = { '&':'&', '<':'<', '>':'>', '"':'"', "'":'&#39;' };
   return String(s ?? '').replace(/[&<>"']/g, c => map[c]);
 }
 function escapeAttr(s) { return escapeHtml(s); }
@@ -585,6 +585,17 @@ function layoutSingleLabels(singleClusters, options = {}) {
   });
 }
 
+// ===== Adaptive helpers for Time periods band =====
+
+// Measure average pixel gap between adjacent bar centers.
+function bandDensity(barCenters) {
+  if (!barCenters.length) return Infinity;
+  const sorted = [...barCenters].sort((a,b)=>a-b);
+  let gaps = 0;
+  for (let i=1;i<sorted.length;i++) gaps += (sorted[i]-sorted[i-1]);
+  return gaps / Math.max(1, sorted.length-1);
+}
+
 function shortenToFitBand(text, maxWidth) {
   if (!text) return '';
   if (ctx.measureText(text).width <= maxWidth) return text;
@@ -599,56 +610,61 @@ function shortenToFitBand(text, maxWidth) {
 }
 
 /**
- * Layout labels within the Time periods band.
- * items: [{xCenter:number, title:string, dotY:number}]
- * rowsN: number of label rows to use inside the band
- * yBase: top of band + padding
- * dy: per-row vertical spacing
- * maxW: max label width
- * leader: draw leader lines from bar center to label row
+ * Adaptive lane packing for labels in the Time periods band.
+ * items: [{x:number, title:string, dotY:number}]
+ * lanesN: initial lanes; may add more up to maxLanes
+ * laneGap: minimal horizontal gap within a lane
+ * yTop: first lane y, dy: lane spacing, maxW: max text width
  */
-function layoutTimePeriodLabels(items, rowsN, yBase, dy, maxW, leader) {
-  const rows = Array.from({ length: rowsN }, () => ({ right: -Infinity, items: [] }));
+function layoutTimePeriodLabelsAdaptive(items, lanesN, maxLanes, laneGap, yTop, dy, maxW) {
+  const lanes = Array.from({ length: lanesN }, () => ({ right: -Infinity, labels: [] }));
 
-  items.forEach(it => {
+  function placeOne(it) {
     const text = shortenToFitBand(it.title, maxW);
-    const labelW = Math.min(maxW, ctx.measureText(text).width + 6);
+    const w = Math.min(maxW, ctx.measureText(text).width + 6);
+    const anchorX = it.x;
 
-    // try to place into the first row that has enough gap
-    for (let r = 0; r < rowsN; r++) {
-      const row = rows[r];
-      if (it.xCenter - labelW / 2 > row.right + 8) { // 8px min gap
-        row.items.push({ x: it.xCenter, w: labelW, text, dotY: it.dotY });
-        row.right = it.xCenter + labelW / 2;
-        return;
+    // try existing lanes
+    for (let i = 0; i < lanes.length; i++) {
+      const lane = lanes[i];
+      if (anchorX - w/2 > lane.right + laneGap) {
+        lane.labels.push({ x: anchorX, w, text, dotY: it.dotY });
+        lane.right = anchorX + w/2;
+        return true;
       }
     }
-    // fallback to the last row (may overlap minimally)
-    const last = rows[rowsN - 1];
-    last.items.push({ x: it.xCenter, w: labelW, text, dotY: it.dotY });
-    last.right = Math.max(last.right, it.xCenter + labelW / 2);
-  });
+    // add new lane if allowed
+    if (lanes.length < maxLanes) {
+      lanes.push({ right: -Infinity, labels: [] });
+      const lane = lanes[lanes.length - 1];
+      lane.labels.push({ x: anchorX, w, text, dotY: it.dotY });
+      lane.right = anchorX + w/2;
+      return true;
+    }
+    return false; // could not place without overlap
+  }
 
-  // draw labels and leader lines
+  // Greedy left-to-right placement
+  const sorted = [...items].sort((a,b)=>a.x - b.x);
+  sorted.forEach(placeOne);
+
+  // draw
   ctx.fillStyle = '#111';
   ctx.textBaseline = 'top';
   ctx.font = '14px sans-serif';
-  rows.forEach((row, ri) => {
-    const y = yBase + ri * dy;
-    row.items.forEach(lbl => {
-      // text
+  lanes.forEach((lane, idx) => {
+    const y = yTop + idx * dy;
+    lane.labels.forEach(lbl => {
       ctx.fillText(lbl.text, lbl.x + 8, y);
-      // leader
-      if (leader) {
-        ctx.strokeStyle = '#00000022';
-        ctx.beginPath();
-        ctx.moveTo(lbl.x, lbl.dotY + 8); // from bar center
-        ctx.lineTo(lbl.x + 6, y);        // to label row
-        ctx.stroke();
-           }
+      ctx.strokeStyle = '#00000022';
+      ctx.beginPath();
+      ctx.moveTo(lbl.x, lbl.dotY + 8); // from bar row
+      ctx.lineTo(lbl.x + 6, y);        // to lane
+      ctx.stroke();
     });
   });
 }
+
 async function loadCsv(url) {
   const res = await fetch(url);
   console.log('[diag] CSV fetch:', res.status, res.statusText, 'url:', url);
@@ -717,7 +733,7 @@ function draw() {
   }
   ctx.restore();
 
-  // center line + center-year label
+  // center line
   ctx.strokeStyle = '#00000033';
   ctx.beginPath();
   ctx.moveTo(W / dpr / 2, 0);
@@ -796,7 +812,7 @@ function draw() {
     }
   });
 
-  // clustering (for single points)
+  // clustering (single points)
   visiblePoints.sort((a, b) => a.x - b.x);
   const clusters = [];
   let current = null;
@@ -857,62 +873,98 @@ function draw() {
   const singles = clusters.filter(c => c.events.length === 1);
   layoutSingleLabels(singles, { gap: gapForScale(), rows: rowsForScale(), y: 118, dy: 18, maxW: maxLabelWidthForScale(), leader: true });
 
+  // ---- Dedicated "Time periods" band ----
+  const showTimePeriodsBand = isGroupVisible('Time periods') && timePeriodBars.length > 0;
+  if (showTimePeriodsBand) {
+    // band background
+    ctx.save();
+    ctx.fillStyle = '#f3f7ff';
+    ctx.strokeStyle = '#00000015';
+    ctx.beginPath();
+    ctx.rect(0, TP_BAND_Y, W / dpr, TP_BAND_H);
+    ctx.fill();
+    ctx.stroke();
 
-// ---- Dedicated "Time periods" band ----
-const showTimePeriodsBand = isGroupVisible('Time periods') && timePeriodBars.length > 0;
-if (showTimePeriodsBand) {
-  // band background
-  ctx.save();
-  ctx.fillStyle = '#f3f7ff';
-  ctx.strokeStyle = '#00000015';
-  ctx.beginPath();
-  ctx.rect(0, TP_BAND_Y, W / dpr, TP_BAND_H);
-  ctx.fill();
-  ctx.stroke();
+    // band label
+    ctx.fillStyle = '#335';
+    ctx.font = '12px sans-serif';
+    ctx.textBaseline = 'top';
+    ctx.fillText(TP_BAND_LABEL, 10, TP_BAND_Y + 6);
+    ctx.restore();
 
-  // band label
-  ctx.fillStyle = '#335';
-  ctx.font = '12px sans-serif';
-  ctx.textBaseline = 'top';
-  ctx.fillText(TP_BAND_LABEL, 10, TP_BAND_Y + 6);
-  ctx.restore();
+    // bars row centered in the band
+    const barRowY = TP_BAND_Y + Math.floor(TP_BAND_H / 2) - 8; // 16px bar height
 
-  // Draw bars in a single centered row within the band
-  const barRowY = TP_BAND_Y + Math.floor(TP_BAND_H / 2) - 8; // bar height 16px
-  ctx.font = '14px sans-serif';
-  ctx.textBaseline = 'top';
+    // draw bars + collect anchors
+    const labelItems = [];
+    const centers = []; // for density
 
-  // Collect label items for layout
-  const labelItems = [];
+    ctx.font = '14px sans-serif';
+    ctx.textBaseline = 'top';
 
-  timePeriodBars.forEach(bar => {
-    const bx = Math.max(TP_BAND_PAD_X, bar.x);
-    const bw = Math.max(4, bar.w - TP_BAND_PAD_X * 2);
+    timePeriodBars.forEach(bar => {
+      const bx = Math.max(TP_BAND_PAD_X, bar.x);
+      const bw = Math.max(4, bar.w - TP_BAND_PAD_X * 2);
 
-    // draw the bar
-    const fillCol = bar.color.replace('45%', '85%');
-    fillStrokeRoundedRect(bx, barRowY, bw, 16, 8, fillCol, '#00000022');
+      const fillCol = bar.color.replace('45%', '85%');
+      fillStrokeRoundedRect(bx, barRowY, bw, 16, 8, fillCol, '#00000022');
 
-    // hit-test rect for the bar
-    drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bx, y: barRowY, w: bw, h: 16 });
+      // hit-test rect for the bar
+      drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bx, y: barRowY, w: bw, h: 16 });
 
-    // prepare label layout (centered above rows inside band)
-    if (bar.title) {
-      const xCenter = bx + bw; // place label to the right of its bar (like generic bars)
-      labelItems.push({ xCenter, title: bar.title, dotY: barRowY });
+      // anchor for label placement (prefer to the right of bar)
+      const anchorX = bx + bw;
+      centers.push(anchorX);
+
+      if (bar.title) {
+        const nearRightEdge = anchorX + 220 > (W / dpr); // heuristic
+        labelItems.push({
+          x: nearRightEdge ? bx : anchorX,  // left if near edge; otherwise right of bar
+          title: bar.title,
+          dotY: barRowY
+        });
+      }
+    });
+
+    // --- Adaptive strategy based on density ---
+    const avgGapPx = bandDensity(centers);
+    const VERY_DENSE = 28;  // avg gap < 28px => hover-only labels
+    const DENSE      = 44;  // 28–44px       => thin + more lanes
+    const COMFY      = 80;  // >44px         => normal lanes; >80px more room
+
+    // max label width varies by zoom
+    const maxW = (scale >= 800) ? 320 : (scale >= 200) ? 240 : 180;
+
+    if (avgGapPx < VERY_DENSE) {
+      // Hover-only: skip drawing text labels; bars remain, no overlap.
+      // Tooltips/details still reveal titles on hover/click.
+    } else {
+      // lane parameters
+      let lanesInit = (scale >= 800) ? 3 : 2;
+      let lanesMax  = (scale >= 800) ? 6 : 5;
+      let laneGap   = 8;
+
+      // Thin labels if dense
+      let keepEvery = 1;
+      if (avgGapPx < DENSE) {
+        keepEvery = 2;                  // keep every 2nd label
+        lanesInit = Math.min(lanesInit + 1, lanesMax);
+      } else if (avgGapPx > COMFY) {
+        keepEvery = 1;                  // show all
+      }
+
+      const pruned = [];
+      for (let i = 0; i < labelItems.length; i++) {
+        if (i % keepEvery === 0) pruned.push(labelItems[i]);
+      }
+
+      // lanes vertical positioning inside the band
+      const yTop = TP_BAND_Y + 12;
+      const dy   = 18;
+
+      layoutTimePeriodLabelsAdaptive(pruned, lanesInit, lanesMax, laneGap, yTop, dy, maxW);
     }
-  });
-
-  // Layout labels in multiple rows inside the band to avoid overlap
-  const rowsN = (scale >= 800) ? 3 : (scale >= 200) ? 2 : 2;       // 2–3 rows depending on zoom
-  const yBase = TP_BAND_Y + 12;                                     // top padding inside band
-  const dy    = 18;                                                 // per-row spacing
-  const maxW  = (scale >= 800) ? 320 : (scale >= 200) ? 240 : 180;  // max label width
-  const leader = true;
-
-  layoutTimePeriodLabels(labelItems, rowsN, yBase, dy, maxW, leader);
-}
-
+  }
 
   // ---- Generic range bars row (non-"Time periods") ----
   ctx.font = '14px sans-serif';
@@ -1050,6 +1102,7 @@ function setTooltip(text, x, y) {
 function hideTooltip() {
   setTooltip('', 0, 0);
 }
+
 
 // ===== Responsive =====
 
