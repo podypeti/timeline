@@ -585,6 +585,70 @@ function layoutSingleLabels(singleClusters, options = {}) {
   });
 }
 
+function shortenToFitBand(text, maxWidth) {
+  if (!text) return '';
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  // binary search to ellipsize
+  let lo = 0, hi = text.length;
+  while (lo < hi) {
+    const mid = ((lo + hi) >> 1);
+    const cand = text.slice(0, mid) + '…';
+    if (ctx.measureText(cand).width <= maxWidth) lo = mid + 1; else hi = mid;
+  }
+  return text.slice(0, Math.max(1, lo - 1)) + '…';
+}
+
+/**
+ * Layout labels within the Time periods band.
+ * items: [{xCenter:number, title:string, dotY:number}]
+ * rowsN: number of label rows to use inside the band
+ * yBase: top of band + padding
+ * dy: per-row vertical spacing
+ * maxW: max label width
+ * leader: draw leader lines from bar center to label row
+ */
+function layoutTimePeriodLabels(items, rowsN, yBase, dy, maxW, leader) {
+  const rows = Array.from({ length: rowsN }, () => ({ right: -Infinity, items: [] }));
+
+  items.forEach(it => {
+    const text = shortenToFitBand(it.title, maxW);
+    const labelW = Math.min(maxW, ctx.measureText(text).width + 6);
+
+    // try to place into the first row that has enough gap
+    for (let r = 0; r < rowsN; r++) {
+      const row = rows[r];
+      if (it.xCenter - labelW / 2 > row.right + 8) { // 8px min gap
+        row.items.push({ x: it.xCenter, w: labelW, text, dotY: it.dotY });
+        row.right = it.xCenter + labelW / 2;
+        return;
+      }
+    }
+    // fallback to the last row (may overlap minimally)
+    const last = rows[rowsN - 1];
+    last.items.push({ x: it.xCenter, w: labelW, text, dotY: it.dotY });
+    last.right = Math.max(last.right, it.xCenter + labelW / 2);
+  });
+
+  // draw labels and leader lines
+  ctx.fillStyle = '#111';
+  ctx.textBaseline = 'top';
+  ctx.font = '14px sans-serif';
+  rows.forEach((row, ri) => {
+    const y = yBase + ri * dy;
+    row.items.forEach(lbl => {
+      // text
+      ctx.fillText(lbl.text, lbl.x + 8, y);
+      // leader
+      if (leader) {
+        ctx.strokeStyle = '#00000022';
+        ctx.beginPath();
+        ctx.moveTo(lbl.x, lbl.dotY + 8); // from bar center
+        ctx.lineTo(lbl.x + 6, y);        // to label row
+        ctx.stroke();
+           }
+    });
+  });
+}
 async function loadCsv(url) {
   const res = await fetch(url);
   console.log('[diag] CSV fetch:', res.status, res.statusText, 'url:', url);
@@ -793,40 +857,62 @@ function draw() {
   const singles = clusters.filter(c => c.events.length === 1);
   layoutSingleLabels(singles, { gap: gapForScale(), rows: rowsForScale(), y: 118, dy: 18, maxW: maxLabelWidthForScale(), leader: true });
 
-  // ---- Dedicated "Time periods" band ----
-  const showTimePeriodsBand = isGroupVisible('Time periods') && timePeriodBars.length > 0;
-  if (showTimePeriodsBand) {
-    // band background
-    ctx.save();
-    ctx.fillStyle = '#f3f7ff';
-    ctx.strokeStyle = '#00000015';
-    ctx.beginPath();
-    ctx.rect(0, TP_BAND_Y, W / dpr, TP_BAND_H);
-    ctx.fill();
-    ctx.stroke();
 
-    // band label
-    ctx.fillStyle = '#335';
-    ctx.font = '12px sans-serif';
-    ctx.textBaseline = 'top';
-    ctx.fillText(TP_BAND_LABEL, 10, TP_BAND_Y + 6);
-    ctx.restore();
+// ---- Dedicated "Time periods" band ----
+const showTimePeriodsBand = isGroupVisible('Time periods') && timePeriodBars.length > 0;
+if (showTimePeriodsBand) {
+  // band background
+  ctx.save();
+  ctx.fillStyle = '#f3f7ff';
+  ctx.strokeStyle = '#00000015';
+  ctx.beginPath();
+  ctx.rect(0, TP_BAND_Y, W / dpr, TP_BAND_H);
+  ctx.fill();
+  ctx.stroke();
 
-    // draw "Time periods" bars in band
-    ctx.font = '14px sans-serif';
-    ctx.textBaseline = 'top';
-    timePeriodBars.forEach(bar => {
-      const bx = Math.max(TP_BAND_PAD_X, bar.x);
-      const bw = Math.max(4, bar.w - TP_BAND_PAD_X * 2);
-      const by = TP_BAND_Y + Math.floor(TP_BAND_H / 2) - 8; // centered row inside band
+  // band label
+  ctx.fillStyle = '#335';
+  ctx.font = '12px sans-serif';
+  ctx.textBaseline = 'top';
+  ctx.fillText(TP_BAND_LABEL, 10, TP_BAND_Y + 6);
+  ctx.restore();
 
-      const fillCol = bar.color.replace('45%', '85%');
-      fillStrokeRoundedRect(bx, by, bw, 16, 8, fillCol, '#00000022');
+  // Draw bars in a single centered row within the band
+  const barRowY = TP_BAND_Y + Math.floor(TP_BAND_H / 2) - 8; // bar height 16px
+  ctx.font = '14px sans-serif';
+  ctx.textBaseline = 'top';
 
-      if (bar.title) { ctx.fillStyle = '#111'; ctx.fillText(bar.title, bx + bw + 8, by); }
-      drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bx, y: by, w: bw, h: 16 });
-    });
-  }
+  // Collect label items for layout
+  const labelItems = [];
+
+  timePeriodBars.forEach(bar => {
+    const bx = Math.max(TP_BAND_PAD_X, bar.x);
+    const bw = Math.max(4, bar.w - TP_BAND_PAD_X * 2);
+
+    // draw the bar
+    const fillCol = bar.color.replace('45%', '85%');
+    fillStrokeRoundedRect(bx, barRowY, bw, 16, 8, fillCol, '#00000022');
+
+    // hit-test rect for the bar
+    drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bx, y: barRowY, w: bw, h: 16 });
+
+    // prepare label layout (centered above rows inside band)
+    if (bar.title) {
+      const xCenter = bx + bw; // place label to the right of its bar (like generic bars)
+      labelItems.push({ xCenter, title: bar.title, dotY: barRowY });
+    }
+  });
+
+  // Layout labels in multiple rows inside the band to avoid overlap
+  const rowsN = (scale >= 800) ? 3 : (scale >= 200) ? 2 : 2;       // 2–3 rows depending on zoom
+  const yBase = TP_BAND_Y + 12;                                     // top padding inside band
+  const dy    = 18;                                                 // per-row spacing
+  const maxW  = (scale >= 800) ? 320 : (scale >= 200) ? 240 : 180;  // max label width
+  const leader = true;
+
+  layoutTimePeriodLabels(labelItems, rowsN, yBase, dy, maxW, leader);
+}
+
 
   // ---- Generic range bars row (non-"Time periods") ----
   ctx.font = '14px sans-serif';
