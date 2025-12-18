@@ -905,6 +905,7 @@ canvas.addEventListener('touchmove', (e) => { if (isDragging && e.touches.length
 canvas.addEventListener('touchend', () => { isDragging = false; });
 
 
+
 // Hover tooltips
 canvas.addEventListener('mousemove', (e) => {
   const rect = canvas.getBoundingClientRect();
@@ -966,7 +967,9 @@ function hideTooltip() {
   setTooltip('', 0, 0);
 }
 
-//// ===== Responsive =====
+// ===== Responsive =====
+window.addEventListener('resize', () => { draw(); });
+
 
 
 
