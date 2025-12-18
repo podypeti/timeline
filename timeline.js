@@ -671,58 +671,70 @@ function draw() {
   const otherRangeBars = []; // bars for any range group except "Time periods"
 
   events.forEach(ev => {
-    const group = (ev['Group'] ?? '').trim();
-    if (!isGroupVisible(group)) return;
-    if (!matchesEventSearch(ev, eventSearchTerm)) return;
+    
+events.forEach(ev => {
+  const group = (ev['Group'] ?? '').trim();
+  if (!isGroupVisible(group)) return;
+  if (!matchesEventSearch(ev, eventSearchTerm)) return;
 
-    const baseYear = parseInt(ev['Year'], 10);
-    let startYearFloat = NaN;
-    if (Number.isFinite(baseYear)) {
-      const mVal = parseInt(ev['Month'], 10);
-      const dVal = parseInt(ev['Day'], 10);
-      const tVal = ev['Time'] ?? '';
-      startYearFloat = dateToYearFloat(baseYear, mVal, dVal, tVal);
-    }
-    const endYear = parseInt(ev['End Year'], 10);
-    let endYearFloat = NaN;
-    if (Number.isFinite(endYear)) {
-      const endM = parseInt(ev['End Month'], 10);
-      const endD = parseInt(ev['End Day'], 10);
-      const endT = ev['End Time'] ?? '';
-      endYearFloat = dateToYearFloat(endYear, endM, endD, endT);
-    }
-    const title = ev['Headline'] ?? ev['Text'] ?? '';
-
-    // ranges -> bar
-    if (Number.isFinite(startYearFloat) && Number.isFinite(endYearFloat)) {
-      const x1 = xForYear(startYearFloat), x2 = xForYear(endYearFloat);
-      const xL = Math.min(x1, x2), xR = Math.max(x1, x2);
-      if (xR > -50 && xL < W / dpr + 50) {
-        const col = getGroupColor(group);
-        const barWidth = Math.max(4, xR - xL);
-        const bar = { ev, x: xL, w: barWidth, color: col, title };
-
-
-if (group === 'Time periods') {
-  const xStart = Number.isFinite(startYearFloat) ? xForYear(startYearFloat) : null;
-  const xEnd = Number.isFinite(endYearFloat) ? xForYear(endYearFloat) : xStart;
-  if (xStart !== null) {
-    const xL = Math.min(xStart, xEnd);
-    const xR = Math.max(xStart, xEnd);
-    const barWidth = Math.max(4, xR - xL); // at least 4px wide
-    timePeriodBars.push({ ev, x: xL, w: barWidth, color: getGroupColor(group), title });
+  const baseYear = parseInt(ev['Year'], 10);
+  let startYearFloat = NaN;
+  if (Number.isFinite(baseYear)) {
+    const mVal = parseInt(ev['Month'], 10);
+    const dVal = parseInt(ev['Day'], 10);
+    const tVal = ev['Time'] ?? '';
+    startYearFloat = dateToYearFloat(baseYear, mVal, dVal, tVal);
   }
-      return;
-    }
 
-    // single points
+  const endYear = parseInt(ev['End Year'], 10);
+  let endYearFloat = NaN;
+  if (Number.isFinite(endYear)) {
+    const endM = parseInt(ev['End Month'], 10);
+    const endD = parseInt(ev['End Day'], 10);
+    const endT = ev['End Time'] ?? '';
+    endYearFloat = dateToYearFloat(endYear, endM, endD, endT);
+  }
+
+  const title = ev['Headline'] ?? ev['Text'] ?? '';
+
+  // --- Route ALL "Time periods" into the dedicated band (range or single-year) ---
+  if (group === 'Time periods') {
     if (Number.isFinite(startYearFloat)) {
-      const x = xForYear(startYearFloat);
-      if (x > -50 && x < W / dpr + 50) {
-        const color = getGroupColor(group);
-        ev._labelDate = ev['Display Date'] || formatYearHuman(Math.round(parseInt(ev['Year'], 10)));
-        visiblePoints.push({ ev, x, yLabel: rowYPoint, title, group, color, yearFloat: startYearFloat, yearKey: Math.round(startYearFloat) });
+      const xStart = xForYear(startYearFloat);
+      const xEnd = Number.isFinite(endYearFloat) ? xForYear(endYearFloat) : xStart;
+      if (xEnd > -50 && xStart < W / dpr      if (xEnd > -50 && xStart < W / dpr + 50) {
+        const xL = Math.min(xStart, xEnd);
+        const xR = Math.max(xStart, xEnd);
+        const barWidth = Math.max(4, xR - xL); // at least 4px wide for single-year
+        timePeriodBars.push({ ev, x: xL, w: barWidth, color: getGroupColor(group), title });
       }
+    }
+    // Do not draw "Time periods" anywhere else
+    return;
+  }
+
+  // --- Non-"Time periods": draw ranges as bars in the generic bar row ---
+  if (Number.isFinite(startYearFloat) && Number.isFinite(endYearFloat)) {
+    const x1 = xForYear(startYearFloat), x2 = xForYear(endYearFloat);
+    const xL = Math.min(x1, x2), xR = Math.max(x1, x2);
+    if (xR > -50 && xL < W / dpr + 50) {
+      const col = getGroupColor(group);
+      const barWidth = Math.max(4, xR - xL);
+      otherRangeBars.push({ ev, x: xL, w: barWidth, color: col, title });
+    }
+    return; // range handled; skip point drawing
+  }
+
+  // --- Single points (non-"Time periods") ---
+  if (Number.isFinite(startYearFloat)) {
+    const x = xForYear(startYearFloat);
+    if (x > -50 && x < W / dpr + 50) {
+      const color = getGroupColor(group);
+      ev._labelDate = ev['Display Date'] || formatYearHuman(Math.round(parseInt(ev['Year'], 10)));
+      visiblePoints.push({ ev, x, yLabel: rowYPoint, title, group, color, yearFloat: startYearFloat, yearKey: Math.round(startYearFloat) });
+    }
+  }
+
     };
 
   // clustering
@@ -788,7 +800,7 @@ if (group === 'Time periods') {
   layoutSingleLabels(singles, { gap: gapForScale(), rows: rowsForScale(), y: 118, dy: 18, maxW: maxLabelWidthForScale(), leader: true });
 
   // ---- Dedicated "Time periods" band ----
-  const showTimePeriodsBand = isGroupVisible('Time periods')
+  const showTimePeriodsBand = isGroupVisible('Time periods') && timePeriodBars.length > 0;
     if (showTimePeriodsBand) {
     // band background
     ctx.save();
