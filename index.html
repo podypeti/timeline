@@ -73,7 +73,7 @@
       // Try to load CSV if loadCsv exists; otherwise proceed with empty events
       if (typeof loadCsv === 'function') {
         try {
-          const rows = await loadCsv('timeline-data.csv'); // served via http/https (file:// may block fetch)
+          const rows = await loadCsv('timeline-data.csv'); // must be in repo root
           window.events = rows;                // expose for debugging
           // timeline.js declares `let events = []`; update it for rendering
           events = rows;
@@ -98,7 +98,7 @@
     // Run now if DOM is already ready; else wait for DOMContentLoaded (once)
     if (document.readyState !== 'loading') {
       boot();
-    } else {
+       } else {
       document.addEventListener('DOMContentLoaded', boot, { once: true });
     }
   })();
@@ -165,7 +165,7 @@
 
     // Optional: close on Escape
     document.addEventListener('keydown', (e) => {
-      if (e.key      if (e.key === 'Escape' && content.classList.contains('popover-show')) {
+      if (e.key === 'Escape' && content.classList.contains('popover-show')) {
         hidePopover();
       }
     });
