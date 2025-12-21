@@ -117,7 +117,24 @@
         hidePopover();
       }
     });
-  })();
+  })
+    
+async function bootstrap() {
+  // 1) prepare canvas scale & pan
+  initScaleAndPan();                       // sets initial scale/pan
+
+  // 2) load the CSV (use a relative path from the page to the file)
+  const csvUrl = './timeline-data.csv?v=' + (typeof ASSET_VERSION !== 'undefined' ? ASSET_VERSION : Date.now());
+  events = await loadCsv(csvUrl);          // <-- fill the global 'events' array
+
+  // 3) build legend & draw once
+  buildLegend  buildLegend();
+  draw();
+}
+
+window.addEventListener('DOMContentLoaded', bootstrap);
+
+    ();
   </script>
 
 </body>
