@@ -883,97 +883,76 @@ if (group === 'Time periods') {
   layoutSingleLabels(singles, { gap: gapForScale(), rows: rowsForScale(), y: 118, dy: 18, maxW: maxLabelWidthForScale(), leader: true });
 
   // ---- Dedicated "Time periods" band ----
-  const showTimePeriodsBand = isGroupVisible('Time periods') && timePeriodBars.length > 0;
-  if (showTimePeriodsBand) {
-    // band background
-    ctx.save();
-    ctx.fillStyle = '#f3f7ff';
-    ctx.strokeStyle = '#00000015';
-    ctx.beginPath();
-    ctx.rect(0, TP_BAND_Y, W / dpr, TP_BAND_H);
-    ctx.fill();
-    ctx.stroke();
 
-    // band label
-    ctx.fillStyle = '#335';
-    ctx.font = '12px sans-serif';
-    ctx.textBaseline = 'top';
-    ctx.fillText(TP_BAND_LABEL, 10, TP_BAND_Y + 6);
-    ctx.restore();
+// ---- Dedicated "Time periods" band ----
+const showTimePeriodsBand = isGroupVisible('Time periods') && timePeriodBars.length > 0;
+if (showTimePeriodsBand) {
+  // band background
+  ctx.save();
+  ctx.fillStyle = '#f3f7ff';
+  ctx.strokeStyle = '#00000015';
+  ctx.beginPath();
+  ctx.rect(0, TP_BAND_Y, W / dpr, TP_BAND_H);
+  ctx.fill();
+  ctx.stroke();
 
-    // bars row centered in the band
-    const barRowY = TP_BAND_Y + Math.floor(TP_BAND_H / 2) - 8; // 16px bar height
+  // band label
+  ctx.fillStyle = '#335';
+  ctx.font = '12px sans-serif';
+  ctx.textBaseline = 'top';
+  ctx.fillText(TP_BAND_LABEL, 10, TP_BAND_Y + 6);
+  ctx.restore();
 
-    // draw bars + collect anchors
-    const labelItems = [];
-    const centers = []; // for density
+  // bars row centered in the band
+  const barRowY = TP_BAND_Y + Math.floor(TP_BAND_H / 2) - 8; // 16px bar height
 
+  // local helper: ellipsize to fit a max pixel width
+  function ellipsizeToWidth(text, maxW) {
+    if (!text) return '';
     ctx.font = '14px sans-serif';
-    ctx.textBaseline = 'top';
-
-    timePeriodBars.forEach(bar => {
-      const bx = Math.max(TP_BAND_PAD_X, bar.x);
-      const bw = Math.max(4, bar.w - TP_BAND_PAD_X * 2);
-
-      const fillCol = bar.color.replace('45%', '85%');
-      fillStrokeRoundedRect(bx, barRowY, bw, 16, 8, fillCol, '#00000022');
-
-      // hit-test rect for the bar
-      drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bx, y: barRowY, w: bw, h: 16 });
-
-      // anchor for label placement (prefer to the right of bar)
-      const anchorX = bx + bw;
-      centers.push(anchorX);
-
-      if (bar.title) {
-        const nearRightEdge = anchorX + 220 > (W / dpr); // heuristic
-        labelItems.push({
-          x: nearRightEdge ? bx : anchorX,  // left if near edge; otherwise right of bar
-          title: bar.title,
-          dotY: barRowY
-        });
-      }
-    });
-
-    // --- Adaptive strategy based on density ---
-    const avgGapPx = bandDensity(centers);
-    const VERY_DENSE = 28;  // avg gap < 28px => hover-only labels
-    const DENSE      = 44;  // 28–44px       => thin + more lanes
-    const COMFY      = 80;  // >44px         => normal lanes; >80px more room
-
-    // max label width varies by zoom
-    const maxW = (scale >= 800) ? 320 : (scale >= 200) ? 240 : 180;
-
-    if (avgGapPx < VERY_DENSE) {
-      // Hover-only: skip drawing text labels; bars remain, no overlap.
-      // Tooltips/details still reveal titles on hover/click.
-    } else {
-      // lane parameters
-      let lanesInit = (scale >= 800) ? 3 : 2;
-      let lanesMax  = (scale >= 800) ? 6 : 5;
-      let laneGap   = 8;
-
-      // Thin labels if dense
-      let keepEvery = 1;
-      if (avgGapPx < DENSE) {
-        keepEvery = 2;                  // keep every 2nd label
-        lanesInit = Math.min(lanesInit + 1, lanesMax);
-      } else if (avgGapPx > COMFY) {
-        keepEvery = 1;                  // show all
-      }
-
-      const pruned = [];
-      for (let i = 0; i < labelItems.length; i++) {
-        if (i % keepEvery === 0) pruned.push(labelItems[i]);
-      }
-
-      // lanes vertical positioning inside the band
-      const yTop = TP_BAND_Y + 12;
-      const dy   = 18;
-
-      layoutTimePeriodLabelsAdaptive(pruned, lanesInit, lanesMax, laneGap, yTop, dy, maxW);
+    if (ctx.measureText(text).width <= maxW) return text;
+    let lo = 0, hi = text.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      const cand = text.slice(0, mid) + '…';
+      if (ctx.measureText(cand).width <= maxW) lo = mid + 1; else hi = mid;
     }
+    return text.slice(0, Math.max(1, lo - 1)) + '…';
   }
+
+  // draw bars + text INSIDE the bar, left-aligned
+  ctx.font = '14px sans-serif';
+  ctx.textBaseline = 'top';
+  timePeriodBars.forEach(bar => {
+    const bx = Math.max(TP_BAND_PAD_X, bar.x);
+    const bw = Math.max(4, bar.w - TP_BAND_PAD_X * 2);
+    const fillCol = bar.color.replace('45%', '85%');
+
+    // bar
+    fillStrokeRoundedRect(bx, barRowY, bw, 16, 8, fillCol, '#00000022');
+
+    // hit-test rect for the bar
+    drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bx, y: barRowY, w: bw, h: 16 });
+
+    // title inside the bar, left aligned
+    if (bar.title) {
+      const padL = 6;                 // left text padding inside bar
+      const padR = 6;                 // right padding so text doesn't touch rounded corner
+      const available = Math.max(0, bw - (padL + padR));
+      const text = ellipsizeToWidth(bar.title, available);
+
+      // choose readable ink: dark on light fill
+      ctx.fillStyle = '#111';
+      // If the bar is very short (< 40px), use white ink to contrast the colored pill
+      if (bw < 40) ctx.fillStyle = '#fff';
+
+      ctx.fillText(text, bx + padL, barRowY + 1);
+    }
+  });
+
+  // NOTE: We no longer place external labels or leaders in the band.
+  // Your hover tooltip & click-to-details still work via hit-test rects  // Your hover tooltip & click-to-details still work via hit-test rects above.
+
 
   // ---- Generic range bars row (non-"Time periods") ----
   ctx.font = '14px sans-serif';
