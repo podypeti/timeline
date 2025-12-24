@@ -1067,44 +1067,101 @@ function initScaleAndPan() {
 window.addEventListener('resize', () => { draw(); });
 
 
+
+/**
+ * Attach all UI event handlers AFTER the DOM and chips exist.
+ * - Zoom In/Out/Reset buttons (uses zoomTo directly; avoids wrapper scope issues)
+ * - Legend popover toggle (Categories) and outside-click to close
+ * - Details panel close button
+ * - Optional: safety logs for debugging
+ */
 function wireUi() {
   const canvas = document.getElementById('timelineCanvas');
 
-  // --- Zoom buttons ---
+  // --- Zoom buttons (use zoomTo directly; anchor at canvas center) ---
   const btnZoomIn  = document.getElementById('zoomIn');
   const btnZoomOut = document.getElementById('zoomOut');
   const btnReset   = document.getElementById('resetZoom');
 
-  if (btnZoomIn)  btnZoomIn.onclick  = () => zoomIn(canvas.clientWidth / 2);
-  if (btnZoomOut) btnZoomOut.onclick = () => zoomOut(canvas.clientWidth / 2);
-  if (btnReset)   btnReset.onclick   = () => resetAll();
+  if (btnZoomIn) {
+    btnZoomIn.addEventListener('click', () => {
+      const anchor = canvas ? (canvas.clientWidth / 2) : 0;
+      zoomTo(scale * 1.3, anchor);
+    });
+  }
+  if (btnZoomOut) {
+    btnZoomOut.addEventListener('click', () => {
+      const anchor = canvas ? (canvas.clientWidth / 2) : 0;
+      zoomTo(scale / 1.3, anchor);
+    });
+  }
+  if (btnReset) {
+    btnReset.addEventListener('click', () => {
+      resetAll();
+    });
+  }
 
   // --- Legend popover (Categories) ---
+  // We use a fixed-position popover element (#legendPopover).
+  // Clicking the <summary> toggles the popover, but we immediately collapse
+  // native <details> (legendPanel.open = false) to avoid CSS hiding the popover.
   const legendPanel   = document.querySelector('.legend-panel');   // <details>
   const legendPopover = document.getElementById('legendPopover');  // .legend-content
+
   if (legendPanel && legendPopover) {
+    // Toggle/show popover under summary
     legendPanel.addEventListener('click', (e) => {
-      // position popover right under the summary
+      // Position popover under the panel anchor
       const rect = legendPanel.getBoundingClientRect();
       legendPopover.style.left = `${rect.left}px`;
       legendPopover.style.top  = `${rect.bottom + 4}px`;
       legendPopover.classList.toggle('popover-show');
-      // IMPORTANT: immediately collapse native <details> so CSS does not hide popover
+
+      // IMPORTANT: Collapse native <details> so CSS rule [.legend-panel[open] .legend-content]
+      // does not hide the popover. (We manage visibility via .popover-show.)
       legendPanel.open = false;
+
+      // Prevent summary default toggle from interfering further
+      e.preventDefault();
+      e.stopPropagation();
     });
 
     // Click outside to close popover
     document.addEventListener('click', (e) => {
       const insidePanel   = legendPanel.contains(e.target);
       const insidePopover = legendPopover.contains(e.target);
-      if (!insidePanel && !insidePopover) legendPopover.classList.remove('popover-show');
+      if (!insidePanel && !insidePopover) {
+        legendPopover.classList.remove('popover-show');
+      }
+    });
+
+    // Optional: reposition popover on window resize
+    window.addEventListener('resize', () => {
+      if (legendPopover.classList.contains('popover-show')) {
+        const rect = legendPanel.getBoundingClientRect();
+        legendPopover.style.left = `${rect.left}px`;
+        legendPopover.style.top  = `${rect.bottom + 4}px`;
+      }
     });
   }
 
-  // --- Details close button (ensure it responds) ---
-  const detailsClose = document.getElementById('detailsClose');
-  if (detailsClose) detailsClose.onclick = hideDetails;
+  // --- Details close button ---
+  const detailsCloseBtn = document.getElementById('detailsClose');
+  if (detailsCloseBtn) {
+    detailsCloseBtn.addEventListener('click', () => {
+      hideDetails();
+    });
+  }
+
+  // --- (Optional) Safety: ensure hover tooltip doesn't block interactions ---
+  // If you ever suspect overlay elements are blocking the canvas,
+  // uncomment this quick check:
+  // if (canvas) {
+  //   canvas.addEventListener('wheel', () => console.log('[diag] wheel on canvas'), { passive: false });
+  //   canvas.addEventListener('mousedown', () => console.log('[diag] mousedown on canvas'));
+  // }
 }
+
 
 
 // ===== Startup =====
