@@ -708,7 +708,7 @@ function draw() {
     ctx.fillStyle = '#000'; ctx.font = '14px sans-serif';
     ctx.fillText('No events loaded. Check CSV path and CORS.', 18, 28);
     return;
-  }}
+  }
 
   ctx.clearRect(0, 0, W, H);
   drawHitRects = [];
@@ -1112,7 +1112,7 @@ function setTooltip(text, x, y) {
 function hideTooltip() {
   setTooltip('', 0, 0);
 }
-
+}
 
 // ===== Responsive =====
 
