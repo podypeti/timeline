@@ -732,7 +732,7 @@ function draw() {
         }
       }
     }
-  }
+  
   let t = Math.ceil((MIN_YEAR - LABEL_ANCHOR_YEAR) / majorStep) * majorStep + LABEL_ANCHOR_YEAR;
   let lastRight = -Infinity;
   const gap = 10, pillY = 16;
