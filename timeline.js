@@ -936,72 +936,113 @@ function draw() {
   layoutSingleLabels(singles, { gap: gapForScale(), rows: rowsForScale(), y: 118, dy: 18, maxW: maxLabelWidthForScale(), leader: true });
 
   // ===== Dedicated "Time periods" band =====
-  const showTimePeriodsBand = isGroupVisible('Time periods') && timePeriodBars.length > 0;
-  if (showTimePeriodsBand) {
-    // band background
-    ctx.save();
-    ctx.fillStyle = '#f3f7ff';
-    ctx.strokeStyle = '#00000015';
-    ctx.beginPath();
-    ctx.rect(0, TP_BAND_Y, W / dpr, TP_BAND_H);
-    ctx.fill();
-    ctx.stroke();
+  
+const showTimePeriodsBand = isGroupVisible('Time periods') && timePeriodBars.length > 0;
+if (showTimePeriodsBand) {
+  // ---- Band background & label
+  ctx.save();
+  ctx.fillStyle = '#f3f7ff';
+  ctx.strokeStyle = '#00000015';
+  ctx.beginPath();
+  ctx.rect(0, TP_BAND_Y, W / dpr, TP_BAND_H);
+  ctx.fill();
+  ctx.stroke();
 
-    // band label
-    ctx.fillStyle = '#335';
-    ctx.font = '14px sans-serif';
-    ctx.textBaseline = 'top';
-    ctx.fillText(TP_BAND_LABEL, 10, TP_BAND_Y + 6);
-    ctx.restore();
+  ctx.fillStyle = '#335';
+  ctx.font = '14px sans-serif';
+  ctx.textBaseline = 'top';
+  ctx.fillText(TP_BAND_LABEL, 10, TP_BAND_Y + 6);
+  ctx.restore();
 
-    // bars row centered in the band
-    const barRowY = TP_BAND_Y + Math.floor(TP_BAND_H / 2) - 8; // 16px bar height
+  // ---- Compute adaptive row layout
+  // Normalize bar geometry first (respect padding & min width)
+  const bars = timePeriodBars.map(b => {
+    const bx = Math.max(TP_BAND_PAD_X, b.x);
+    const bw = Math.max(4, b.w - TP_BAND_PAD_X * 2);
+    return { ...b, bx, bw, cx: bx + bw / 2 };
+  }).sort((a, b) => a.cx - b.cx);
 
-    // local helper: ellipsize to fit a max pixel width
-    function ellipsizeToWidth(text, maxW) {
-      if (!text) return '';
-      ctx.font = '14px sans-serif';
-      if (ctx.measureText(text).width <= maxW) return text;
-      let lo = 0, hi = text.length;
-      while (lo < hi) {
-        const mid = (lo + hi) >> 1;
-        const cand = text.slice(0, mid) + '…';
-        if (ctx.measureText(cand).width <= maxW) lo = mid + 1; else hi = mid;
+  // Measure density and choose lane count
+  const centers = bars.map(b => b.cx);
+  const avgGapPx = bandDensity(centers); // your helper
+  // Thresholds—tweak to taste
+  const DENSE_GAP = 42;        // below => at least 2 rows
+  const VERY_DENSE_GAP = 28;   // below => consider 3–4 rows for packed timelines
+  let desiredRows = 1;
+  if (avgGapPx < DENSE_GAP) desiredRows = 2;
+  if (avgGapPx < VERY_DENSE_GAP) desiredRows = 3;
+
+  // Greedy packing: place bars into rows so pills don't overlap in the same row
+  // Each row tracks the rightmost x we've used; we place a bar if its left edge
+  // is after (rightmost + minGap).
+  const minGap = 8;   // minimal horizontal gap between pills in the same row
+  const rows = Array.from({ length: desiredRows }, () => ({ right: -Infinity, items: [] }));
+  function placeBarGently(bar) {
+    const left = bar.bx, right = bar.bx + bar.bw;
+    for (const row of rows) {
+      if (left > row.right + minGap) {
+        row.items.push(bar);
+        row.right = right;
+        return true;
       }
-      return text.slice(0, Math.max(1, lo - 1)) + '…';
     }
+    // No space found—add another row (up to a cap) or push to last row anyway.
+    if (rows.length < 4) { // cap rows at 4 (adjust as needed)
+      const newRow = { right: right, items: [bar] };
+      rows.push(newRow);
+      return true;
+    }
+    rows[rows.length - 1].items.push(bar);
+    rows[rows.length - 1].right = Math.max(rows[rows.length - 1].right, right);
+    return false;
+  }
+  bars.forEach(placeBarGently);
 
-    // draw bars + text INSIDE the bar, left-aligned
-    ctx.font = '14px sans-serif';
-    ctx.textBaseline = 'top';
-    timePeriodBars.forEach(bar => {
-      const bx = Math.max(TP_BAND_PAD_X, bar.x);
-      const bw = Math.max(4, bar.w - TP_BAND_PAD_X * 2);
+  // ---- Vertical positioning for rows inside band
+  // We’ll center the row stack in the band area. Each pill is 16px tall.
+  const pillH = 16;
+  const stackH = rows.length * pillH + (rows.length - 1) * 6; // 6px row gap
+  const stackTop = TP_BAND_Y + Math.max(22, Math.floor((TP_BAND_H - stackH) / 2)); // keep clear of band label
+
+  // ---- Draw pills row by row
+  ctx.font = '14px sans-serif';
+  ctx.textBaseline = 'top';
+
+  rows.forEach((row, idx) => {
+    const y = stackTop + idx * (pillH + 6); // 6px spacing between rows
+    row.items.forEach(bar => {
       const fillCol = bar.color.replace('45%', '85%');
+      // pill
+      fillStrokeRoundedRect(bar.bx, y, bar.bw, pillH, 8, fillCol, '#00000022');
+      // hit-test
+      drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bar.bx, y, w: bar.bw, h: pillH });
 
-      // bar
-      fillStrokeRoundedRect(bx, barRowY, bw, 16, 8, fillCol, '#00000022');
-
-      // hit-test rect for the bar
-      drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bx, y: barRowY, w: bw, h: 16 });
-
-      // title inside the bar, left aligned
+      // inside text only if there is room (avoid overlap)
       if (bar.title) {
-        const padL = 6; // left text padding inside bar
-        const padR = 6; // right padding so text doesn't touch rounded corner
-        const available = Math.max(0, bw - (padL + padR));
-        const text = ellipsizeToWidth(bar.title, available);
-
-        // choose readable ink: dark on light fill
-        ctx.fillStyle = '#111';
-        // If the bar is very short (< 40px), use white ink to contrast the colored pill
-        if (bw < 40) ctx.fillStyle = '#fff';
-        ctx.fillText(text, bx + padL, barRowY + 1);
+        const padL = 6, padR = 6;
+        const available = Math.max(0, bar.bw - (padL + padR));
+        if (available >= 52) { // keep label only for sufficiently wide pills
+          // local ellipsizer
+          function ellipsizeToWidth(text, maxW) {
+            if (!text) return '';
+            if (ctx.measureText(text).width <= maxW) return text;
+            let lo = 0, hi = text.length;
+            while (lo < hi) {
+              const mid = (lo + hi) >> 1;
+              const cand = text.slice(0, mid) + '…';
+              if (ctx.measureText(cand).width <= maxW) lo = mid + 1; else hi = mid;
+            }
+            return text.slice(0, Math.max(1, lo - 1)) + '…';
+          }
+          const text = ellipsizeToWidth(bar.title, available);
+          ctx.fillStyle = (bar.bw < 40) ? '#fff' : '#111';
+          ctx.fillText(text, bar.bx + padL, y + 1);
+        }
       }
     });
+  });
+}
 
-    // NOTE: We no longer place external labels or leaders in the band.
-  }
 
   // ===== Generic range bars row (non-"Time periods") =====
   ctx.font = '14px sans-serif';
