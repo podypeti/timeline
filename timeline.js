@@ -920,7 +920,7 @@ if (showTimePeriodsBand) {
 
   // band label
   ctx.fillStyle = '#335';
-  ctx.font = '12px sans-serif';
+  ctx.font = '14px sans-serif';
   ctx.textBaseline = 'top';
   ctx.fillText(TP_BAND_LABEL, 10, TP_BAND_Y + 6);
   ctx.restore();
