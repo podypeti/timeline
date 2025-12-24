@@ -5,131 +5,41 @@
   <meta charset="utf-8" />
   <title>History Timeline</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Styles -->
- <link rel="stylesheet" href="./style.css?v=6-patch5">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
-<canvas id="timelineCanvas"
-        style="width:100%; height:560px; display:block; margin-top:64px;"></canvas>
-
   <div id="timelineContainer">
-    <!-- Toolbar sitting over the canvas -->
     <div class="timelineToolbar">
-      <!-- Legend drop-down (controlled via JS as a fixed popover) -->
-      <details class="legend-panel">
+      <details class="legend-panel" id="legendPanel">
         <summary>Categories</summary>
-        <div class="legend-content">
-          <input id="legendSearch" type="text" placeholder="Filter categories…" />
+        <div class="legend-content" id="legendPopover">
+          <input id="legendSearch" type="search" placeholder="Filter categories…" />
           <div id="legend"></div>
         </div>
       </details>
 
-      <!-- Search across events -->
-      <input id="eventSearch" class="toolbarSearch" type="text"
-             placeholder="Search events… (title, text, date, group)" />
+      <input id="eventSearch" class="toolbarSearch" type="search" placeholder="Search events…" />
 
       <div class="toolbarSpacer"></div>
 
-      <!-- Zoom controls -->
       <div class="zoomGroup">
-        <button id="zoomOut" class="ghost" aria-label="Zoom out">−</button>
-        <button id="zoomIn" class="ghost" aria-label="Zoom in">+</button>
-        <button id="resetZoom" class="ghost" aria-label="Reset">Reset</button>
+        <button id="zoomOut" class="ghost">−</button>
+        <button id="zoomIn" class="ghost">＋</button>
+        <button id="resetZoom" class="ghost">Reset</button>
       </div>
     </div>
 
-    <!-- Main timeline canvas -->
     <canvas id="timelineCanvas"></canvas>
   </div>
 
-  <!-- Event details panel -->
-  <div id="detailsPanel" class="details hidden" aria-live="polite" aria-label="Event details">
+  <div id="hoverTooltip" class="hoverTooltip" role="tooltip" aria-hidden="true"></div>
+
+  <div id="detailsPanel" class="details hidden">
     <button id="detailsClose" class="close" aria-label="Close">×</button>
     <div id="detailsContent"></div>
   </div>
 
-  <!-- Hover tooltip (hidden by default) -->
-  <div id="hoverTooltip" class="hoverTooltip" role="tooltip" aria-hidden="true"></div>
-
-  <!-- Categories popover controller (fixed overlay for Edge + Android Chrome) -->
-  <script>
-  (function () {
-    const panel   = document.querySelector('.legend-panel');
-    if (!panel) return;
-
-    const summary = panel.querySelector('summary');
-    const content = panel.querySelector('.legend-content');
-    if (!summary || !content) return;
-
-    // Position the fixed popover just below the summary
-    function positionPopover() {
-      if (!content.classList.contains('popover-show')) return;
-
-      const rect = summary.getBoundingClientRect();
-      const pad  = 6; // gap between summary and popover
-      const left = Math.round(rect.left);
-      const top  = Math.round(rect.bottom + pad);
-
-      content.style.left = `${left}px`;
-      content.style.top  = `${top}px`;
-    }
-
-    function showPopover() {
-      content.classList.add('popover-show');
-      positionPopover();
-    }
-    function hidePopover() {
-      content.classList.remove('popover-show');
-      // move off-screen to avoid accidental overlap
-      content.style.left = '-9999px';
-      content.style.top  = '-9999px';
-    }
-
-    // Prevent native <details> toggle; control ourselves
-    function toggleHandler(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (content.classList.contains('popover-show')) hidePopover();
-      else showPopover();
-    }
-
-    // Use pointerdown for touch + mouse (Android Chrome friendly)
-    summary.addEventListener('pointerdown', toggleHandler);
-    // Also prevent native click toggling of <details>
-    summary.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); });
-
-    // Keep the popover anchored on scroll/resize
-    const reposition = () => { positionPopover(); };
-    window.addEventListener('scroll', reposition, { passive: true });
-    window.addEventListener('resize', reposition);
-
-    // Close when clicking outside the panel or the popover
-    document.addEventListener('pointerdown', (e) => {
-      if (!content.classList.contains('popover-show')) return;
-      const inside = panel.contains(e.target) || content.contains(e.target);
-      if (!inside) hidePopover();
-    });
-
-    // Optional: close on Escape
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && content.classList.contains('popover-show')) {
-        hidePopover();
-      }
-    });
-  })();
-    
-</script>
-<script src="timeline.js?v=6-patch5"></script>
-<script>
-  async function bootstrap() {
-    initScaleAndPan();
-    events = await loadCsv('./timeline-data.csv?v=' + ASSET_VERSION);
-    buildLegend();
-    draw();
-  }
-  window.addEventListener('DOMContentLoaded', bootstrap);
-</script>
-
+  <!-- Load the timeline logic after the DOM -->
+  <script src="timeline.js?v=6-patch5" defer></script>
 </body>
-
+</html>
