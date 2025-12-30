@@ -1106,75 +1106,44 @@ window.addEventListener('resize', () => { draw(); });
  * - Details panel close button
  * - Optional: safety logs for debugging
  */
+
 function wireUi() {
   const canvas = document.getElementById('timelineCanvas');
 
-  // --- Zoom buttons (use zoomTo directly; anchor at canvas center) ---
-  const btnZoomIn  = document.getElementById('zoomIn');
+  // --- Zoom buttons ---
+  const btnZoomIn = document.getElementById('zoomIn');
   const btnZoomOut = document.getElementById('zoomOut');
-  const btnReset   = document.getElementById('resetZoom');
+  const btnReset = document.getElementById('resetZoom');
 
-  if (btnZoomIn) {
-    btnZoomIn.addEventListener('click', () => {
-      const anchor = canvas ? (canvas.clientWidth / 2) : 0;
-      zoomTo(scale * 1.3, anchor);
-    });
-  }
-  if (btnZoomOut) {
-    btnZoomOut.addEventListener('click', () => {
-      const anchor = canvas ? (canvas.clientWidth / 2) : 0;
-      zoomTo(scale / 1.3, anchor);
-    });
-  }
-  if (btnReset) {
-    btnReset.addEventListener('click', () => {
-      resetAll();
-    });
-  }
+  btnZoomIn?.addEventListener('click', () => {
+    const anchor = canvas ? (canvas.clientWidth / 2) : 0;
+    zoomTo(scale * 1.3, anchor);
+  });
+  btnZoomOut?.addEventListener('click', () => {
+    const anchor = canvas ? (canvas.clientWidth / 2) : 0;
+    zoomTo(scale / 1.3, anchor);
+  });
+  btnReset?.addEventListener('click', () => {
+    resetAll();
+  });
 
-  // --- Legend popover (Categories) ---
-  // We use a fixed-position popover element (#legendPopover).
-  // Clicking the <summary> toggles the popover, but we immediately collapse
-  // native <details> (legendPanel.open = false) to avoid CSS hiding the popover.
-  // const legendPanel   = document.querySelector('.legend-panel');   // <details>
-  // const legendPopover = document.getElementById('legendPopover');  // .legend-content
+  // --- (Popover REMOVED) ---
 
-   // if (legendPanel && legendPopover) {
-    // Toggle/show popover under summary
-    //  legendPanel.addEventListener('click', (e) => {
-      // Position popover under the panel anchor
-     // const rect = legendPanel.getBoundingClientRect();
-     // legendPopover.style.left = `${rect.left}px`;
-     // legendPopover.style.top  = `${rect.bottom + 4}px`;
-     // legendPopover.classList.toggle('popover-show');
+  // --- Details close button ---
+  const detailsCloseBtn = document.getElementById('detailsClose');
+  detailsCloseBtn?.addEventListener('click', () => {
+    hideDetails();
+  });
 
-      // IMPORTANT: Collapse native <details> so CSS rule [.legend-panel[open] .legend-content]
-      // does not hide the popover. (We manage visibility via .popover-show.)
-    //  legendPanel.open = false;
+  // Optional: wheel zoom
+  canvas?.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    const anchor = e.clientX;
+    zoomTo(scale * factor, anchor);
+  }, { passive: false });
+}
 
-      // Prevent summary default toggle from interfering further
-    //  e.preventDefault();
-    //  e.stopPropagation();
-  //  });
-
-    // Click outside to close popover
-    document.addEventListener('click', (e) => {
-      const insidePanel   = legendPanel.contains(e.target);
-      const insidePopover = legendPopover.contains(e.target);
-      if (!insidePanel && !insidePopover) {
-        legendPopover.classList.remove('popover-show');
-      }
-    });
-
-    // Optional: reposition popover on window resize
-    window.addEventListener('resize', () => {
-      if (legendPopover.classList.contains('popover-show')) {
-        const rect = legendPanel.getBoundingClientRect();
-        legendPopover.style.left = `${rect.left}px`;
-        legendPopover.style.top  = `${rect.bottom + 4}px`;
-      }
-    });
-  }
 
   // --- Details close button ---
   const detailsCloseBtn = document.getElementById('detailsClose');
