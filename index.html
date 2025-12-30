@@ -33,16 +33,22 @@
           <button id="resetZoom" class="ghost" title="Reset view">Reset</button>
         </div>
 
-        <!-- Legend anchor (popover handled by JS) -->
-        <details class="legend-panel">
-          <summary aria-haspopup="true" aria-expanded="false">
-            <span style="font-weight:600">Categories</span>
-          </summary>
-        </details>
-      </div>
 
-      <!-- Canvas (timeline) -->
-      <canvas id="timelineCanvas"></canvas>
+<!-- Canvas (timeline) -->
+<canvas id="timelineCanvas"></canvas>
+
+<!-- Bottom legend dock: horizontally scrollable chip list -->
+<div id="legendDock" class="legendDock" role="navigation" aria-label="Categories">
+  <input
+    id="legendSearch"
+    type="search"
+    class="legendSearch"
+    placeholder="Filter categories…"
+    aria-label="Filter categories"
+  />
+  <div id="legend" class="legendStrip" aria-live="polite"></div>
+</div>
+
 
       <!-- Legend popover (fixed overlay controlled by JS) -->
       <div id="legendPopover" class="legend-content" role="dialog" aria-label="Categories">
