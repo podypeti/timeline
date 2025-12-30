@@ -222,6 +222,16 @@ function resetAll() {
   draw();
 }
 
+btnZoomIn?.addEventListener('click', () => {
+  const anchor = canvas ? (canvas.clientWidth / 2) : 0;
+  zoomTo(scale * 1.3, anchor);
+});
+btnZoomOut?.addEventListener('click', () => {
+  const anchor = canvas ? (canvas.clientWidth / 2) : 0;
+  zoomTo(scale / 1.3, anchor);
+});
+btnReset?.addEventListener('click', () => resetAll());
+
 // ===== JDN =====
 function gregorianToJDN(y, m, d) {
   const a = Math.floor((14 - m) / 12);
@@ -1126,8 +1136,8 @@ function wireUi() {
   // We use a fixed-position popover element (#legendPopover).
   // Clicking the <summary> toggles the popover, but we immediately collapse
   // native <details> (legendPanel.open = false) to avoid CSS hiding the popover.
-  const legendPanel   = document.querySelector('.legend-panel');   // <details>
-  const legendPopover = document.getElementById('legendPopover');  // .legend-content
+  // const legendPanel   = document.querySelector('.legend-panel');   // <details>
+  // const legendPopover = document.getElementById('legendPopover');  // .legend-content
 
   if (legendPanel && legendPopover) {
     // Toggle/show popover under summary
