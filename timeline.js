@@ -179,6 +179,49 @@ function centerOnYear(y) {
   draw();
 }
 
+/**
+ * Zoom the timeline to a new scale, keeping the year under the given
+ * canvas CSS X-coordinate (anchorCssX) fixed in place.
+ */
+function zoomTo(newScale, anchorCssX) {
+  // Clamp scale to allowed range
+  const clamped = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newScale));
+
+  // If no canvas yet, just set the scale
+  if (!canvas) {
+    scale = clamped;
+    draw();
+    return;
+  }
+
+  // Year that sits under the anchor position BEFORE zoom
+  const anchorYear = yearForX(anchorCssX);
+
+  // Apply new scale
+  scale = clamped;
+
+  // Compute where that year would be AFTER zoom
+  const newAnchorX = xForYear(anchorYear);
+
+  // Adjust pan so the same year stays under the same CSS pixel X
+  // (keep the visual anchor fixed)
+  panX += (anchorCssX - newAnchorX);
+
+  draw();
+}
+
+/**
+ * Reset everything to the initial view (center on 1 CE by default),
+ * close details, and rebuild the legend chips.
+ */
+function resetAll() {
+  hideDetails();          // close any open details
+  initScaleAndPan();      // recompute base scale and panX from canvas size
+  // Optional: restore group filters to "all" by rebuilding legend
+  buildLegend();
+  draw();
+}
+
 // ===== JDN =====
 function gregorianToJDN(y, m, d) {
   const a = Math.floor((14 - m) / 12);
