@@ -1139,23 +1139,23 @@ function wireUi() {
   // const legendPanel   = document.querySelector('.legend-panel');   // <details>
   // const legendPopover = document.getElementById('legendPopover');  // .legend-content
 
-  if (legendPanel && legendPopover) {
+   // if (legendPanel && legendPopover) {
     // Toggle/show popover under summary
-    legendPanel.addEventListener('click', (e) => {
+    //  legendPanel.addEventListener('click', (e) => {
       // Position popover under the panel anchor
-      const rect = legendPanel.getBoundingClientRect();
-      legendPopover.style.left = `${rect.left}px`;
-      legendPopover.style.top  = `${rect.bottom + 4}px`;
-      legendPopover.classList.toggle('popover-show');
+     // const rect = legendPanel.getBoundingClientRect();
+     // legendPopover.style.left = `${rect.left}px`;
+     // legendPopover.style.top  = `${rect.bottom + 4}px`;
+     // legendPopover.classList.toggle('popover-show');
 
       // IMPORTANT: Collapse native <details> so CSS rule [.legend-panel[open] .legend-content]
       // does not hide the popover. (We manage visibility via .popover-show.)
-      legendPanel.open = false;
+    //  legendPanel.open = false;
 
       // Prevent summary default toggle from interfering further
-      e.preventDefault();
-      e.stopPropagation();
-    });
+    //  e.preventDefault();
+    //  e.stopPropagation();
+  //  });
 
     // Click outside to close popover
     document.addEventListener('click', (e) => {
