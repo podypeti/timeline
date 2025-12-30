@@ -341,28 +341,7 @@ function addAdminChip(label, onClick, color) {
   chip.addEventListener('click', onClick);
   legendEl.appendChild(chip);
 }
-function getGroupIcon(group) {
-  const g = (group ?? '').trim();
-  const map = {
-    'Bible writing': '📚',
-    'Bible copy/translation': '📜',
-    'Events': '⭐',
-    'Persons': '👤',
-    'Covenants': '📜',
-    'Judges': '⚖️',
-    'Kings of Israel': '👑',
-    'Kings of Judah': '👑',
-    'Prophets': '📖',
-    'World powers': '🌍',
-    'Jesus': '✝️',
-    'Time periods': '⏳',
-    'Modern day history of JW': '🔊',
-    'King of the North': '⬆️',
-    'King of the South': '⬇️',
-    "Paul's journeys": '🛤️',
-  };
-  return map[g] || '•';
-}
+
 function buildLegend() {
   const groups = [...new Set(
     events.map(e => (e['Group'] ?? '').trim()).filter(Boolean)
