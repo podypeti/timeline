@@ -1,47 +1,71 @@
 
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>History Timeline</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
- 
-<div id="timelineContainer">
-  <div class="timelineToolbar">
-    <details class="legend-panel" id="legendPanel">
-      <summary>Categories</summary>
-      <div class="legend-content" id="legendPopover">
-        <input id="legendSearch" type="search" placeholder="Filter categories…" />
-        <div id="legend"></div>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, user-scalable=no"
+    />
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css?v=6-patch5" />
+  </head>
+  <body>
+    <div id="timelineContainer">
+      <!-- Toolbar -->
+      <div class="timelineToolbar">
+        <!-- Event search field -->
+        <input
+          id="eventSearch"
+          class="toolbarSearch"
+          type="search"
+          placeholder="Search events…"
+          aria-label="Search events"
+        />
+
+        <div class="toolbarSpacer"></div>
+
+        <!-- Zoom controls -->
+        <div class="zoomGroup" aria-label="Zoom controls">
+          <button id="zoomOut" class="ghost" title="Zoom out">−</button>
+          <button id="zoomIn" class="ghost" title="Zoom in">+</button>
+          <button id="resetZoom" class="ghost" title="Reset view">Reset</button>
+        </div>
+
+        <!-- Legend anchor (popover handled by JS) -->
+        <details class="legend-panel">
+          <summary aria-haspopup="true" aria-expanded="false">
+            <span style="font-weight:600">Categories</span>
+          </summary>
+        </details>
       </div>
-    </details>
 
-    <input id="eventSearch" class="toolbarSearch" type="search" placeholder="Search events…" />
+      <!-- Canvas (timeline) -->
+      <canvas id="timelineCanvas"></canvas>
 
-    <div class="toolbarSpacer"></div>
+      <!-- Legend popover (fixed overlay controlled by JS) -->
+      <div id="legendPopover" class="legend-content" role="dialog" aria-label="Categories">
+        <input
+          id="legendSearch"
+          type="search"
+          placeholder="Filter categories…"
+          aria-label="Filter categories"
+        />
+        <div id="legend" class="legend"></div>
+      </div>
 
-    <div class="zoomGroup">
-      <button id="zoomOut" class="ghost">−</button>
-      <button id="zoomIn" class="ghost">＋</button>
-      <button id="resetZoom" class="ghost">Reset</button>
+      <!-- Event details panel -->
+      <div id="detailsPanel" class="details hidden" aria-live="polite">
+        <button id="detailsClose" class="close" title="Close">×</button>
+        <div id="detailsContent"></div>
+      </div>
+
+      <!-- Optional hover tooltip target -->
+      <div id="hoverTooltip" class="hoverTooltip" aria-hidden="true"></div>
     </div>
-  </div>
 
-  <canvas id="timelineCanvas"></canvas>
-</div>
-
-<div id="hoverTooltip" class="hoverTooltip" role="tooltip" aria-hidden="true"></div>
-
-<div id="detailsPanel" class="details hidden">
-  <button id="detailsClose" class="close" aria-label="Close">×</button>
-  <div id="detailsContent"></div>
-</div>
-
-
-  <!-- Load the timeline logic after the DOM -->
-  <script src="timeline.js?v=6-patch5" defer></script>
-</body>
+    <!-- Script -->
+    <script defer src="timeline.js?v=6-patch5"></script>
+  </body>
 </html>
