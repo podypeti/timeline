@@ -1191,7 +1191,7 @@ function wireUi() {
   //   canvas.addEventListener('wheel', () => console.log('[diag] wheel on canvas'), { passive: false });
   //   canvas.addEventListener('mousedown', () => console.log('[diag] mousedown on canvas'));
   // }
-}
+//}
 
 
 
