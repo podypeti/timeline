@@ -430,7 +430,6 @@ function showDetails(ev) {
     || (Number.isFinite(baseYear) ? formatYearHuman(baseYear) : '');
   const headline = ev['Headline'] || '';
   const text = ev['Text'] || '';
-  const media = ev['Media'] || '';
   const credit = ev['Media Credit'] || '';
   const caption = ev['Media Caption'] || '';
 
@@ -1085,7 +1084,6 @@ if (showTimePeriodsBand) {
     if (bar.title) { ctx.fillStyle = '#111'; ctx.fillText(bar.title, bar.x + bar.w + 8, rowYBar); }
     drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bar.x, y: rowYBar, w: bar.w, h: 16 });
   });
-}
 
 // ===== Init =====
 function initScaleAndPan() {
