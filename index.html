@@ -7,15 +7,15 @@
       name="viewport"
       content="width=device-width, initial-scale=1, user-scalable=no"
     />
+    <title>History Timeline</title>
 
     <!-- Styles -->
     <link rel="stylesheet" href="style.css?v=6-patch5" />
   </head>
   <body>
     <div id="timelineContainer">
-      <!-- Toolbar -->
-      <div class="timelineToolbar">
-        <!-- Event search field -->
+      <!-- Top toolbar -->
+      <div class="timelineToolbar" role="toolbar" aria-label="Timeline controls">
         <input
           id="eventSearch"
           class="toolbarSearch"
@@ -26,39 +26,26 @@
 
         <div class="toolbarSpacer"></div>
 
-        <!-- Zoom controls -->
         <div class="zoomGroup" aria-label="Zoom controls">
           <button id="zoomOut" class="ghost" title="Zoom out">−</button>
           <button id="zoomIn" class="ghost" title="Zoom in">+</button>
           <button id="resetZoom" class="ghost" title="Reset view">Reset</button>
         </div>
+      </div>
 
+      <!-- Canvas (timeline drawing surface) -->
+      <canvas id="timelineCanvas"></canvas>
 
-<!-- Canvas (timeline) -->
-<canvas id="timelineCanvas"></canvas>
-
-<!-- Bottom legend dock: horizontally scrollable chip list -->
-<div id="legendDock" class="legendDock" role="navigation" aria-label="Categories">
-  <input
-    id="legendSearch"
-    type="search"
-    class="legendSearch"
-    placeholder="Filter categories…"
-    aria-label="Filter categories"
-  />
-  <div id="legend" class="legendStrip" aria-live="polite"></div>
-</div>
-
-
-      <!-- Legend popover (fixed overlay controlled by JS) -->
-     <!--  <div id="legendPopover" class="legend-content" role="dialog" aria-label="Categories">
+      <!-- Bottom legend dock: horizontally scrollable category chips -->
+      <div id="legendDock" class="legendDock" role="navigation" aria-label="Categories">
         <input
           id="legendSearch"
           type="search"
+          class="legendSearch"
           placeholder="Filter categories…"
           aria-label="Filter categories"
         />
-        <div id="legend" class="legend"></div>
+        <div id="legend" class="legendStrip" aria-live="polite"></div>
       </div>
 
       <!-- Event details panel -->
@@ -72,6 +59,6 @@
     </div>
 
     <!-- Script -->
-    <script defer src="timeline.js?v=6-patch5"></script>
+    <script src="timeline.js?v=6-patch5" defer></script>
   </body>
 </html>
