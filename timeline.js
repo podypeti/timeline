@@ -784,7 +784,7 @@ function draw() {
     t += majorStep;
   }
   ctx.restore();
-}
+
   // Center line
   ctx.strokeStyle = '#00000033';
   ctx.beginPath();
@@ -1074,7 +1074,7 @@ if (showTimePeriodsBand) {
     if (bar.title) { ctx.fillStyle = '#111'; ctx.fillText(bar.title, bar.x + bar.w + 8, rowYBar); }
     drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bar.x, y: rowYBar, w: bar.w, h: 16 });
   });
-
+}
 // ===== Init =====
 function initScaleAndPan() {
   sizeCanvasToCss();
