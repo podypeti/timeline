@@ -742,7 +742,7 @@ function draw() {
     ctx.fillText('No events loaded. Check CSV path and CORS.', 18, 28);
     return;
   }
-}
+
   // Clear & background
   ctx.clearRect(0, 0, W, H);
   drawHitRects = [];
@@ -794,7 +794,7 @@ function draw() {
     t += majorStep;
   }
   ctx.restore();
-
+}
   // Center line
   ctx.strokeStyle = '#00000033';
   ctx.beginPath();
