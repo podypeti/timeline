@@ -733,12 +733,9 @@ window.loadCsv = loadCsv; // exposes the function globally
 // ===== Main draw =====
 function draw() {
   sizeCanvasToCss();
- // console.log('[diag] draw() events:',
-   // Array.isArray(events) ? events.length : 'events not array');
-  
-  console.log('[diag] draw() W,H (px):', W, H, 'dpr:', dpr, 'CSS size:', canvas?.clientWidth, canvas?.clientHeight);
-  console.log('[diag] scale:', scale, 'panX:', panX);
-  console.log('[diag] events array:', Array.isArray(events), 'length:', events?.length);
+ console.log('[diag] draw() events:',
+   Array.isArray(events) ? events.length : 'events not array');
+
 
   // If zero, draw a hint so we can see it on canvas:
   if (!Array.isArray(events) || events.length === 0) {
@@ -746,7 +743,7 @@ function draw() {
     ctx.fillText('No events loaded. Check CSV path and CORS.', 18, 28);
     return;
   }
-
+}
   // Clear & background
   ctx.clearRect(0, 0, W, H);
   drawHitRects = [];
@@ -1099,7 +1096,11 @@ function initScaleAndPan() {
 }
 
 // ===== Responsive =====
-window.addEventListener('resize', () => { draw(); });
+window.addEventListener('resize', () => {
+  initScaleAndPan();     // recompute base scale and pan from current width
+  draw();
+});
+
 
 
 
