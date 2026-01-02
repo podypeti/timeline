@@ -117,3 +117,41 @@
 .legendStrip::-webkit-scrollbar-thumb { background: #0003; border-radius: 6px; }
 
 
+/* Toolbar container sitting above canvas */
+.timelineToolbar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.92);
+  border-bottom: 1px solid #0001;
+  box-shadow: 0 2px 8px var(--shadow);
+  z-index: 5;
+}
+
+/* Search field style */
+.toolbarSearch {
+  width: clamp(220px, 28vw, 360px);
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background: #fff;
+  font-size: 14px;
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+/* Zoom controls */
+.zoomGroup button.ghost {
+  padding: 6px 12px;
+  font-size: .9rem;
+  border: 1px solid #0002;
+  background: #fff;
+  color: #111;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px var(--shadow);
+}
+.zoomGroup button.ghost:hover { background: #f3f3f3; }
+
