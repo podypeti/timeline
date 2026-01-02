@@ -19,6 +19,8 @@
   cursor: pointer;
   user-select: none;
   transition: background .12s ease, box-shadow .12s ease, transform .06s ease;
+  flex: 0 0 auto;           
+  white-space: nowrap;                         
 }
 
 /* Hover: slightly stronger shadow */
@@ -71,8 +73,7 @@
   background: #0b5ed7;
 }
 
-/* Keep horizontal strip behavior */
-.legendStrip .chip { flex: 0 0 auto; white-space: nowrap; }
+
 
 /* Keyboard accessibility: visible focus ring */
 .legendStrip .chip:focus,
@@ -80,3 +81,39 @@
   outline: 2px solid #0d6efd;
   outline-offset: 2px;
 }
+
+
+/* Bottom legend dock stays as a fixed bar at the bottom */
+.legendDock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.92);
+  border-top: 1px solid #0002;
+  box-shadow: 0 -6px 18px var(--shadow);
+  z-index: 15;
+
+  /* Use grid for search + strip side-by-side */
+  display: grid;
+  grid-template-columns: 220px 1fr; /* search | strip */
+  gap: 10px;
+  align-items: center;
+}
+
+/* The chip strip must NEVER wrap; only scroll horizontally */
+.legendStrip {
+  display: flex;
+  flex-wrap: nowrap;          /* ← keep one row */
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;           /* ← horizontal scroll */
+  overflow-y: hidden;
+  padding: 4px 2px;
+  scrollbar-width: thin;      /* Firefox */
+}
+.legendStrip::-webkit-scrollbar { height: 8px; }
+.legendStrip::-webkit-scrollbar-thumb { background: #0003; border-radius: 6px; }
+
+
