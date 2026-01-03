@@ -1170,7 +1170,7 @@ otherRangeBars.forEach(bar => {
             fillStrokeRoundedRect(bar.bx, y, bar.bw, pillH, 8, fillCol, '#00000022');
       // hit-test
       const pr = pointRadius();     
-drawHitRects.push({ kind: 'bar', bar.ev: bar.ev, x: bar.bx, y, w: bar.bw, h: pillH});
+drawHitRects.push({ kind: 'point', ev: bar.ev, x: x - 6, y: y - 6, w: 12, h: 12 });
 
       // inside text only if there is room (avoid overlap)
       if (bar.title) {
