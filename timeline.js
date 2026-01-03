@@ -1099,7 +1099,6 @@ otherRangeBars.forEach(bar => {
 
 // 👇 FINAL closing brace of draw()
 }
-  });
 // ===== Init =====
 function initScaleAndPan() {
   sizeCanvasToCss();
