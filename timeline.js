@@ -1054,7 +1054,7 @@ function draw() {
       ctx.fillStyle = col;
       ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
 
-      drawHitRects.push({ kind: 'point', bar.ev, x: x - 6, y: y - 6, w: 12, h: 12 });
+drawHitRects.push({ kind: 'point', ev: bar.ev, x: x - 6, y: y - 6, w: 12, h: 12 });
 
     } else {
       const r = Math.min(14, 7 + Math.log2(n + 1));
