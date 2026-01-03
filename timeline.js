@@ -796,15 +796,6 @@ function draw() {
  console.log('[diag] draw() events:',
    Array.isArray(events) ? events.length : 'events not array');
 
-const pr = pointRadius();
-ctx.beginPath(); ctx.arc(x, y, pr, 0, Math.PI * 2); ctx.fill();
-drawHitRects.push({ kind: 'point', ev, x: x - (pr + 1), y: y - (pr + 1), w: (pr + 1) * 2, h: (pr + 1) * 2 });
-  
-const r = clusterRadius(n);
-ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-ctx.font = `${fontPx(12)}px sans-serif`; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
-ctx.fillText(String(n), x, y);
-drawHitRects.push({ kind: 'cluster', cluster, x: x - (r + 2), y: y - (r + 2), w: (r + 2) * 2, h: (r + 2) * 2 });
 
   // If zero, draw a hint so we can see it on canvas:
   if (!Array.isArray(events) || events.length === 0) {
@@ -1113,13 +1104,7 @@ if (showTimePeriodsBand) {
     const y = stackTop + idx * (pillH + 6); // 6px spacing between rows
     row.items.forEach(bar => {
       const fillCol = bar.color.replace('45%', '85%');
-      // pill
-
-const th = barThickness();
-fillStrokeRoundedRect(bar.x, rowYBar, bar.w, th, 8, fillCol, '#00000022');
-if (bar.title) { ctx.fillStyle = '#111'; ctx.fillText(bar.title, bar.x + bar.w + 8, rowYBar); }
-drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bar.x, y: rowYBar, w: bar.w, h: th });
-
+      
       // hit-test
       drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bar.bx, y, w: bar.bw, h: pillH });
 
@@ -1244,8 +1229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   buildLegend();                     // chips populated
   wireUi();                          // buttons & wheel zoom wired
-
-  // ⬇️ Ensure the first visible view is centered on 1 CE
+  centerOnYear(INITIAL_CENTER_YEAR);
   draw();
 });
 
