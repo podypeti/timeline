@@ -1193,8 +1193,7 @@ row.items.forEach(bar => {
 });
  
   });
- }
-}
+});
 // ===== Init =====
 function initScaleAndPan() {
   sizeCanvasToCss();
@@ -1213,18 +1212,6 @@ window.addEventListener('resize', () => {
     draw();
   }, 80);
 });
-
-
-
-
-
-/**
- * Attach all UI event handlers AFTER the DOM and chips exist.
- * - Zoom In/Out/Reset buttons (uses zoomTo directly; avoids wrapper scope issues)
- * - Legend popover toggle (Categories) and outside-click to close
- * - Details panel close button
- * - Optional: safety logs for debugging
- */
 
 function wireUi() {
   const canvas = document.getElementById('timelineCanvas');
