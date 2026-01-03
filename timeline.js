@@ -721,13 +721,6 @@ function shortenToFitBand(text, maxWidth) {
   return text.slice(0, Math.max(1, lo - 1)) + '…';
 }
 
-/**
- * Adaptive lane packing for labels in the Time periods band.
- * items: [{x:number, title:string, dotY:number}]
- * lanesN: initial lanes; may add more up to maxLanes
- * laneGap: minimal horizontal gap within a lane
- * yTop: first lane y, dy: lane spacing, maxW: max text width
- */
 function layoutTimePeriodLabelsAdaptive(items, lanesN, maxLanes, laneGap, yTop, dy, maxW) {
   const lanes = Array.from({ length: lanesN }, () => ({ right: -Infinity, labels: [] }));
 
@@ -1084,9 +1077,10 @@ clusters.forEach(cluster => {
   const singles = clusters.filter(c => c.events.length === 1);
   layoutSingleLabels(singles, { gap: gapForScale(), rows: rowsForScale(), y: 118, dy: 18, maxW: maxLabelWidthForScale(), leader: true });
 
-  // ===== Dedicated "Time periods" band =====
-  
+
+// ===== Dedicated "Time periods" band =====
 const showTimePeriodsBand = isGroupVisible('Time periods') && timePeriodBars.length > 0;
+
 if (showTimePeriodsBand) {
   // ---- Band background & label
   ctx.save();
@@ -1096,23 +1090,108 @@ if (showTimePeriodsBand) {
   ctx.rect(0, TP_BAND_Y, W / dpr, TP_BAND_H);
   ctx.fill();
   ctx.stroke();
-
   ctx.fillStyle = '#335';
   ctx.font = `${fontPx(14)}px sans-serif`;
   ctx.textBaseline = 'top';
   ctx.fillText(TP_BAND_LABEL, 10, TP_BAND_Y + 6);
   ctx.restore();
-};
-  
-  // ===== Generic range bars row (non-"Time periods") =====
+
+  // ---- Normalize geometry & compute adaptive rows
+  const bars = timePeriodBars
+    .map(b => {
+      const bx = Math.max(TP_BAND_PAD_X, b.x);
+      const bw = Math.max(4, b.w - TP_BAND_PAD_X * 2);
+      return { ...b, bx, bw, cx: bx + bw / 2 };
+    })
+    .sort((a, b) => a.cx - b.cx);
+
+  const centers = bars.map(b => b.cx);
+  const avgGapPx = bandDensity(centers); // average gap
+  const DENSE_GAP = 42;
+  const VERY_DENSE_GAP = 28;
+  let desiredRows = 1;
+  if (avgGapPx < DENSE_GAP) desiredRows = 2;
+  if (avgGapPx < VERY_DENSE_GAP) desiredRows = 3;
+
+  const minGap = 8;
+  const rows = Array.from({ length: desiredRows }, () => ({ right: -Infinity, items: [] }));
+  function placeBarGently(bar) {
+    const left = bar.bx, right = bar.bx + bar.bw;
+    for (const row of rows) {
+      if (left > row.right + minGap) {
+        row.items.push(bar);
+        row.right = right;
+        return true;
+      }
+    }
+    if (rows.length < 4) { // cap at 4 rows
+      const newRow = { right, items: [bar] };
+      rows.push(newRow);
+      return true;
+    }
+    const last = rows[rows.length - 1];
+    last.items.push(bar);
+    last.right = Math.max(last.right, right);
+    return false;
+  }
+  bars.forEach(placeBarGently);
+
+  // ---- Vertical positioning for pills in the band
+  const pillH = barThickness();
+  const stackH = rows.length * pillH + (rows.length - 1) * 6;
+  const stackTop = TP_BAND_Y + Math.max(22, Math.floor((TP_BAND_H - stackH) / 2));
+
+  // ---- Draw each pill row
+  ctx.font = `${fontPx(14)}px sans-serif`;
+  ctx.textBaseline = 'top';
+  rows.forEach((row, idx) => {
+    const y = stackTop + idx * (pillH + 6);
+    row.items.forEach(bar => {
+      const fillCol = bar.color.replace('45%', '85%');
+      // pill shape
+      fillStrokeRoundedRect(bar.bx, y, bar.bw, pillH, 8, fillCol, '#00000022');
+      // hit rect for pill
+      drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bar.bx, y, w: bar.bw, h: pillH });
+
+      // optional inside text (if wide enough)
+      if (bar.title) {
+        const padL = 6, padR = 6;
+        const available = Math.max(0, bar.bw - (padL + padR));
+        if (available >= 52) {
+          // local ellipsizer
+          function ellipsizeToWidth(text, maxW) {
+            if (!text) return '';
+            if (ctx.measureText(text).width <= maxW) return text;
+            let lo = 0, hi = text.length;
+            while (lo < hi) {
+              const mid = ((lo + hi) >> 1);
+              const cand = text.slice(0, mid) + '…';
+              if (ctx.measureText(cand).width <= maxW) lo = mid + 1; else hi = mid;
+            }
+            return text.slice(0, Math.max(1, lo - 1)) + '…';
+          }
+          const text = ellipsizeToWidth(bar.title, available);
+          ctx.fillStyle = (bar.bw < 40) ? '#fff' : '#111';
+          ctx.fillText(text, bar.bx + padL, y + 1);
+        }
+      }
+    });
+  });
+} // <-- close the band block
+
+// ===== Generic range bars row (non-"Time periods") =====
 ctx.font = `${fontPx(14)}px sans-serif`;
 ctx.textBaseline = 'top';
 otherRangeBars.forEach(bar => {
   const fillCol = bar.color.replace('45%', '85%');
   const th = barThickness();
-  fillStrokeRoundedRect(bar.x, rowYBar, bar.w, th, 8, fillCol, '#00000022');  // draw bar
+  fillStrokeRoundedRect(bar.x, rowYBar, bar.w, th, 8, fillCol, '#00000022');
   if (bar.title) { ctx.fillStyle = '#111'; ctx.fillText(bar.title, bar.x + bar.w + 8, rowYBar); }
   drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bar.x, y: rowYBar, w: bar.w, h: th });
+});
+
+// 👇 FINAL closing brace of draw()
+}
   
   // ---- Compute adaptive row layout
   // Normalize bar geometry first (respect padding & min width)
