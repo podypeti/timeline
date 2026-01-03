@@ -1,0 +1,48 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>History Timeline</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Main styles -->
+  style.css?v=1
+
+  <!-- Details panel styles -->
+  details.css?v=1
+
+  <!-- Optional: legend button cosmetics -->
+  <!-- style.legend-buttons.css?v=1 -->
+</head>
+<body>
+
+  <!-- Top toolbar: search + zoom controls -->
+  <div class="timelineToolbar">
+    <input id="eventSearch" class="toolbarSearch" type="search" placeholder="Search events…" />
+    <div class="zoomGroup">
+      <button id="zoomOut" class="ghost" aria-label="Zoom out">−</button>
+      <button id="zoomIn" class="ghost" aria-label="Zoom in">+</button>
+      <button id="resetZoom" class="ghost" aria-label="Reset view">Reset</button>
+    </div>
+  </div>
+
+  <!-- Canvas (timeline rendering target) -->
+  <canvas id="timelineCanvas"></canvas>
+
+  <!-- Bottom legend dock: group search + chips -->
+  <div class="legendDock">
+    <input id="legendSearch" class="toolbarSearch" type="search" placeholder="Search groups…" />
+    <div id="legend" class="legendStrip"></div>
+  </div>
+
+  <!-- Details panel (appears when clicking an event or a cluster circle) -->
+  <div id="detailsPanel" class="hidden" role="dialog" aria-modal="false" aria-labelledby="detailsTitle">
+    <button id="detailsClose" title="Close" aria-label="Close">×</button>
+    <div id="detailsContent"></div>
+  </div>
+
+  <!-- Timeline logic -->
+  timeline.js?v=6-patch5</script>
+</body>
+</html>
