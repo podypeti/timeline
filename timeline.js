@@ -30,21 +30,21 @@ const TP_BAND_LABEL = 'Time periods';  // band label text
 // ===== DOM =====
 const canvas = document.getElementById('timelineCanvas');
 const ctx = canvas.getContext('2d');
-const btnZoomIn = document.getElementById('zoomIn');
-const btnZoomOut = document.getElementById('zoomOut');
-const btnReset = document.getElementById('resetZoom');
+
+
+
 const detailsPanel = document.getElementById('detailsPanel');
 const detailsContent = document.getElementById('detailsContent');
 const legendEl = document.getElementById('legend');
-const hoverTooltip = document.getElementById('hoverTooltip');
+
 
 // ===== State =====
 let dpr = Math.max(1, window.devicePixelRatio || 1);
 let W = 0, H = 0;
 let scale = 1;
 let panX = 0;
-let isDragging = false;
-let dragStartX = 0;
+
+
 let events = [];
 let drawHitRects = [];
 let groupColors = new Map();
@@ -169,10 +169,7 @@ function isGroupVisible(group) {
 }
 
 // Slider label
-function setPanValueLabel(y) {
-  const yr = Math.round(y);
-  panValue.textContent = yr < 0 ? `${Math.abs(yr)} BCE` : `${yr} CE`;
-}
+
 function centerOnYear(y) {
   panX = (canvas.clientWidth / 2) - ((y - MIN_YEAR) * scale);
   draw();
@@ -440,7 +437,7 @@ function escapeHtml(s) {
   const map = { '&':'&', '<':'<', '>':'>', '"':'"', "'":'&#39;' };
   return String(s ?? '').replace(/[&<>"']/g, c => map[c]);
 }
-function escapeAttr(s) { return escapeHtml(s); }
+
 function showDetails(ev) {
   const baseYear = parseInt(ev['Year'], 10);
   const displayDate = (ev['Display Date'] && ev['Display Date'].trim())
@@ -676,20 +673,10 @@ function fontPx(base = 14) {
 }
 
 /** Dot radius for single events, responsive to scale. */
-function pointRadius() {
-  // 5px base; grow to ~8px at high scale, ~4px at very low scale.
-  const r = 5 + Math.log2(Math.max(1, scale)) * 1.5;
-  return Math.max(4, Math.min(8, r));
-}
+
 
 /** Cluster circle radius as function of number of events and scale. */
-function clusterRadius(n) {
-  // Your previous: Math.min(14, 7 + Math.log2(n+1))
-  const rBase = Math.min(14, 7 + Math.log2(n + 1));
-  // Let scale contribute slightly (but clamp to 16 max).
-  const r = rBase + Math.log2(Math.max(1, scale)) * 1.2;
-  return Math.max(8, Math.min(16, r));
-}
+
 
 /** Bar thickness responsive to scale (range bars + band pills). */
 function barThickness() {
@@ -708,67 +695,9 @@ function bandDensity(barCenters) {
   return gaps / Math.max(1, sorted.length-1);
 }
 
-function shortenToFitBand(text, maxWidth) {
-  if (!text) return '';
-  if (ctx.measureText(text).width <= maxWidth) return text;
-  // binary search to ellipsize
-  let lo = 0, hi = text.length;
-  while (lo < hi) {
-    const mid = ((lo + hi) >> 1);
-    const cand = text.slice(0, mid) + '…';
-    if (ctx.measureText(cand).width <= maxWidth) lo = mid + 1; else hi = mid;
-  }
-  return text.slice(0, Math.max(1, lo - 1)) + '…';
-}
 
-function layoutTimePeriodLabelsAdaptive(items, lanesN, maxLanes, laneGap, yTop, dy, maxW) {
-  const lanes = Array.from({ length: lanesN }, () => ({ right: -Infinity, labels: [] }));
 
-  function placeOne(it) {
-    const text = shortenToFitBand(it.title, maxW);
-    const w = Math.min(maxW, ctx.measureText(text).width + 6);
-    const anchorX = it.x;
 
-    // try existing lanes
-    for (let i = 0; i < lanes.length; i++) {
-      const lane = lanes[i];
-      if (anchorX - w/2 > lane.right + laneGap) {
-        lane.labels.push({ x: anchorX, w, text, dotY: it.dotY });
-        lane.right = anchorX + w/2;
-        return true;
-      }
-    }
-    // add new lane if allowed
-    if (lanes.length < maxLanes) {
-      lanes.push({ right: -Infinity, labels: [] });
-      const lane = lanes[lanes.length - 1];
-      lane.labels.push({ x: anchorX, w, text, dotY: it.dotY });
-      lane.right = anchorX + w/2;
-      return true;
-    }
-    return false; // could not place without overlap
-  }
-
-  // Greedy left-to-right placement
-  const sorted = [...items].sort((a,b)=>a.x - b.x);
-  sorted.forEach(placeOne);
-
-  // draw
-  ctx.fillStyle = '#111';
-  ctx.textBaseline = 'top';
-  ctx.font = `${fontPx(14)}px sans-serif`;
-  lanes.forEach((lane, idx) => {
-    const y = yTop + idx * dy;
-    lane.labels.forEach(lbl => {
-      ctx.fillText(lbl.text, lbl.x + 8, y);
-      ctx.strokeStyle = '#00000022';
-      ctx.beginPath();
-      ctx.moveTo(lbl.x, lbl.dotY + 8); // from bar row
-      ctx.lineTo(lbl.x + 6, y);        // to lane
-      ctx.stroke();
-    });
-  });
-}
 
 async function loadCsv(url) {
   const res = await fetch(url);
