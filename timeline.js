@@ -526,7 +526,7 @@ function chooseTickScale(pxPerYear) {
   const candidates = [...baseUnits, ...yearSteps];
 
   const MIN_GAP = 8;
-  ctx.font = '14px sans-serif';
+  ctx.font = `${fontPx(14)}px sans-serif`;
   const sampleX = [
     canvas.clientWidth * 0.12,
     canvas.clientWidth * 0.32,
@@ -597,9 +597,25 @@ function chooseTickScale(pxPerYear) {
 }
 
 // ===== Label layout helpers =====
-function rowsForScale() { if (scale >= 800) return 4; if (scale >= 200) return 3; return 2; }
-function gapForScale() { if (scale >= 200) return 8; return 12; }
-function maxLabelWidthForScale() { if (scale >= 800) return 320; if (scale >= 200) return 240; return 180; }
+
+function rowsForScale() {
+  if (scale >= 800) return 4;
+  if (scale >= 200) return 3;
+  if (scale >= 80)  return 3;   // ↑ add a third row earlier
+  return 2;
+}
+function gapForScale() {
+  if (scale >= 400) return 6;   // smaller gaps at high scale
+  if (scale >= 200) return 8;
+  return 12;                    // larger gaps at low scale
+}
+function maxLabelWidthForScale() {
+  if (scale >= 800) return 320;
+  if (scale >= 200) return 240;
+  if (scale >= 80)  return 200;
+  return 160;                   // narrower at small scale
+}
+
 function shortenToFit(text, maxWidth) {
   let t = text; if (!t) return '';
   if (ctx.measureText(t).width <= maxWidth) return t;
@@ -641,7 +657,7 @@ function layoutSingleLabels(singleClusters, options = {}) {
 
   ctx.fillStyle = '#111';
   ctx.textBaseline = 'top';
-  ctx.font = '14px sans-serif';
+  ctx.font = `${fontPx(14)}px sans-serif`;
   rows.forEach((row, ri) => {
     const y = yBase + ri * dy;
     row.items.forEach(it => {
@@ -654,7 +670,37 @@ function layoutSingleLabels(singleClusters, options = {}) {
   });
 }
 
-// ===== Adaptive helpers for Time periods band =====
+/** Return a font size (px) that adapts to scale and canvas width. */
+function fontPx(base = 14) {
+  // Base 14px; grow a bit when scale is high, shrink a bit when scale is low.
+  // Clamp to keep texts readable.
+  const grow = Math.log2(Math.max(1, scale)); // 0 at scale=1, ~2 at scale=4
+  return Math.max(11, Math.min(18, base + grow)); // 11–18 px
+}
+
+/** Dot radius for single events, responsive to scale. */
+function pointRadius() {
+  // 5px base; grow to ~8px at high scale, ~4px at very low scale.
+  const r = 5 + Math.log2(Math.max(1, scale)) * 1.5;
+  return Math.max(4, Math.min(8, r));
+}
+
+/** Cluster circle radius as function of number of events and scale. */
+function clusterRadius(n) {
+  // Your previous: Math.min(14, 7 + Math.log2(n+1))
+  const rBase = Math.min(14, 7 + Math.log2(n + 1));
+  // Let scale contribute slightly (but clamp to 16 max).
+  const r = rBase + Math.log2(Math.max(1, scale)) * 1.2;
+  return Math.max(8, Math.min(16, r));
+}
+
+/** Bar thickness responsive to scale (range bars + band pills). */
+function barThickness() {
+  // 16px base; slightly thicker at higher scale, thinner at low scale.
+  const t = 16 + Math.log2(Math.max(1, scale)) * 3;
+  return Math.max(12, Math.min(22, t));
+}
+
 
 // Measure average pixel gap between adjacent bar centers.
 function bandDensity(barCenters) {
@@ -720,7 +766,7 @@ function layoutTimePeriodLabelsAdaptive(items, lanesN, maxLanes, laneGap, yTop, 
   // draw
   ctx.fillStyle = '#111';
   ctx.textBaseline = 'top';
-  ctx.font = '14px sans-serif';
+  ctx.font = `${fontPx(14)}px sans-serif`;
   lanes.forEach((lane, idx) => {
     const y = yTop + idx * dy;
     lane.labels.forEach(lbl => {
@@ -751,10 +797,19 @@ function draw() {
  console.log('[diag] draw() events:',
    Array.isArray(events) ? events.length : 'events not array');
 
+const pr = pointRadius();
+ctx.beginPath(); ctx.arc(x, y, pr, 0, Math.PI * 2); ctx.fill();
+drawHitRects.push({ kind: 'point', ev, x: x - (pr + 1), y: y - (pr + 1), w: (pr + 1) * 2, h: (pr + 1) * 2 });
+  
+const r = clusterRadius(n);
+ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+ctx.font = `${fontPx(12)}px sans-serif`; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+ctx.fillText(String(n), x, y);
+drawHitRects.push({ kind: 'cluster', cluster, x: x - (r + 2), y: y - (r + 2), w: (r + 2) * 2, h: (r + 2) * 2 });
 
   // If zero, draw a hint so we can see it on canvas:
   if (!Array.isArray(events) || events.length === 0) {
-    ctx.fillStyle = '#000'; ctx.font = '14px sans-serif';
+    ctx.fillStyle = '#000'; ctx.font = `${fontPx(14)}px sans-serif`;
     ctx.fillText('No events loaded. Check CSV path and CORS.', 18, 28);
     return;
   }
@@ -767,7 +822,7 @@ function draw() {
 
   // ===== scale / ticks =====
   ctx.save();
-  ctx.font = '14px sans-serif';
+  ctx.font = `${fontPx(14)}px sans-serif`;
   const { majorStep, format, minor } = chooseTickScale(scale);
 
   if (minor && minor.step) {
@@ -949,7 +1004,7 @@ function draw() {
 
   // ===== Draw clusters (points and multi-event circles) =====
   ctx.textBaseline = 'top';
-  ctx.font = '14px sans-serif';
+  ctx.font = `${fontPx(14)}px sans-serif`;
 
   clusters.forEach(cluster => {
     const n = cluster.events.length;
@@ -996,7 +1051,7 @@ if (showTimePeriodsBand) {
   ctx.stroke();
 
   ctx.fillStyle = '#335';
-  ctx.font = '14px sans-serif';
+  ctx.font = `${fontPx(14)}px sans-serif`;
   ctx.textBaseline = 'top';
   ctx.fillText(TP_BAND_LABEL, 10, TP_BAND_Y + 6);
   ctx.restore();
@@ -1047,12 +1102,12 @@ if (showTimePeriodsBand) {
 
   // ---- Vertical positioning for rows inside band
   // We’ll center the row stack in the band area. Each pill is 16px tall.
-  const pillH = 16;
+  const pillH = barThickness();
   const stackH = rows.length * pillH + (rows.length - 1) * 6; // 6px row gap
   const stackTop = TP_BAND_Y + Math.max(22, Math.floor((TP_BAND_H - stackH) / 2)); // keep clear of band label
 
   // ---- Draw pills row by row
-  ctx.font = '14px sans-serif';
+  ctx.font = `${fontPx(14)}px sans-serif`;
   ctx.textBaseline = 'top';
 
   rows.forEach((row, idx) => {
@@ -1060,7 +1115,12 @@ if (showTimePeriodsBand) {
     row.items.forEach(bar => {
       const fillCol = bar.color.replace('45%', '85%');
       // pill
-      fillStrokeRoundedRect(bar.bx, y, bar.bw, pillH, 8, fillCol, '#00000022');
+
+const th = barThickness();
+fillStrokeRoundedRect(bar.x, rowYBar, bar.w, th, 8, fillCol, '#00000022');
+if (bar.title) { ctx.fillStyle = '#111'; ctx.fillText(bar.title, bar.x + bar.w + 8, rowYBar); }
+drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bar.x, y: rowYBar, w: bar.w, h: th });
+
       // hit-test
       drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bar.bx, y, w: bar.bw, h: pillH });
 
@@ -1088,18 +1148,7 @@ if (showTimePeriodsBand) {
       }
     });
   });
-}
-
-
-  // ===== Generic range bars row (non-"Time periods") =====
-  ctx.font = '14px sans-serif';
-  ctx.textBaseline = 'top';
-  otherRangeBars.forEach(bar => {
-    const fillCol = bar.color.replace('45%', '85%');
-    fillStrokeRoundedRect(bar.x, rowYBar, bar.w, 16, 8, fillCol, '#00000022');
-    if (bar.title) { ctx.fillStyle = '#111'; ctx.fillText(bar.title, bar.x + bar.w + 8, rowYBar); }
-    drawHitRects.push({ kind: 'bar', ev: bar.ev, x: bar.x, y: rowYBar, w: bar.w, h: 16 });
-  });
+ }
 }
 // ===== Init =====
 function initScaleAndPan() {
@@ -1110,10 +1159,16 @@ function initScaleAndPan() {
 }
 
 // ===== Responsive =====
+
+let _resizeTimer = null;
 window.addEventListener('resize', () => {
-  initScaleAndPan();     // recompute base scale and pan from current width
-  draw();
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => {
+    initScaleAndPan(); // recompute base scale and pan from current width
+    draw();
+  }, 80);
 });
+
 
 
 
