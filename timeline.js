@@ -790,7 +790,6 @@ async function loadCsv(url) {
 }
 window.loadCsv = loadCsv; // exposes the function globally
 
-  centerOnYear(INITIAL_CENTER_YEAR);
 // ===== Main draw =====
 function draw() {
   sizeCanvasToCss();
