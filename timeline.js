@@ -1194,8 +1194,54 @@ function wireUi() {
     const anchor = e.clientX;
     zoomTo(scale * factor, anchor);
   }, { passive: false });
+  
+/** Convert a mouse event to canvas CSS coordinates (respect DPR & transform). */
+function getCanvasCssPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const cssX = e.clientX - rect.left;
+  const cssY = e.clientY - rect.top;
+  return { x: cssX, y: cssY };
 }
 
+/** Find the topmost hit rectangle under (cssX, cssY). */
+function hitTest(cssX, cssY) {
+  // We store hit rects in CSS px units; search from last (topmost) to first.
+  for (let i = drawHitRects.length - 1; i >= 0; i--) {
+    const r = drawHitRects[i];
+    if (cssX >= r.x && cssX <= r.x + r.w && cssY >= r.y && cssY <= r.y + r.h) {
+      return r;
+    }
+  }
+  return null;
+}
+
+/** Wire canvas interactions (click to open details; hover cursor/tooltip). */
+function wireCanvasInteractions() {
+  if (!canvas) return;
+
+  // CLICK → open event(s)
+  canvas.addEventListener('click', (e) => {
+    const { x, y } = getCanvasCssPos(e);
+    const hit = hitTest(x, y);
+    if (!hit) return;
+
+    if (hit.kind === 'point') {
+      showDetails(hit.ev);
+    } else if (hit.kind === 'cluster') {
+      showClusterDetails(hit.cluster);
+    } else if (hit.kind === 'bar') {
+      showDetails(hit.ev);
+    }
+  });
+
+  // HOVER → pointer cursor
+  canvas.addEventListener('mousemove', (e) => {
+    const { x, y } = getCanvasCssPos(e);
+    const hit = hitTest(x, y);
+    canvas.style.cursor = hit ? 'pointer' : 'default';
+  });
+}
+}
 
   // --- Details close button ---
   const detailsCloseBtn = document.getElementById('detailsClose');
@@ -1205,33 +1251,22 @@ function wireUi() {
     });
   }
 
-  // --- (Optional) Safety: ensure hover tooltip doesn't block interactions ---
-  // If you ever suspect overlay elements are blocking the canvas,
-  // uncomment this quick check:
-  // if (canvas) {
-  //   canvas.addEventListener('wheel', () => console.log('[diag] wheel on canvas'), { passive: false });
-  //   canvas.addEventListener('mousedown', () => console.log('[diag] mousedown on canvas'));
-  // }
-//}
-
-
-
 // ===== Startup =====
-
-
 document.addEventListener('DOMContentLoaded', async () => {
-  initScaleAndPan();                 // first pass
+  initScaleAndPan();
   try {
     events = await loadCsv('timeline-data.csv?v=' + ASSET_VERSION);
     console.log('[diag] loaded events:', events.length);
   } catch (err) {
     console.error('[timeline] CSV load failed', err);
   }
-  buildLegend();                     // chips populated
-  wireUi();                          // buttons & wheel zoom wired
+  buildLegend();
+  wireUi();
+  wireCanvasInteractions();        // ⬅️ add this line
   centerOnYear(INITIAL_CENTER_YEAR);
   draw();
 });
+
 
 
 
