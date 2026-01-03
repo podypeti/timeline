@@ -1270,9 +1270,7 @@ row.items.forEach(bar => {
     }
   }
 });
- 
   });
-});
 // ===== Init =====
 function initScaleAndPan() {
   sizeCanvasToCss();
