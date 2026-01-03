@@ -481,9 +481,6 @@ function showClusterDetails(cluster) {
   });
 }
 function hideDetails(){ detailsPanel.classList.add('hidden'); detailsContent.innerHTML = ''; }
-if (detailsClose) {
-  detailsClose.addEventListener('click', hideDetails);
-}
 
 // ===== Month smart formatter =====
 function formatMonthSmart(yearFloat, targetWidthPx) {
